@@ -47,6 +47,8 @@ make %{?jobs:-j%jobs}
 %install
 rm -rf %{buildroot}
 %make_install
+mkdir -p %{buildroot}/usr/share/license
+cp LICENSE %{buildroot}/usr/share/license/%{name}
 
 %files
 %defattr(-,root,root,-)
@@ -54,6 +56,7 @@ rm -rf %{buildroot}
 %{_bindir}/*
 %{_datadir}/swig
 /usr/share/man/man1/ccache-swig.1.gz
+/usr/share/license/%{name}
 
 
 %files doc
