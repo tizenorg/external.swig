@@ -1,7 +1,4 @@
 /* -----------------------------------------------------------------------------
- * See the LICENSE file for information on copyright, usage and redistribution
- * of SWIG, and the README file for authors - http://www.swig.org/release.html.
- *
  * cdata.i
  *
  * SWIG library file containing macros for manipulating raw C data as strings.
@@ -20,7 +17,7 @@ typedef struct SWIGCDATA {
 
 #if SWIGGUILE
 %typemap(out) SWIGCDATA {
-   $result = gh_str2scm($1.data,$1.len);
+   $result = scm_from_locale_stringn($1.data,$1.len);
 }
 %typemap(in) (const void *indata, int inlen) = (char *STRING, int LENGTH);
 #elif SWIGCHICKEN
@@ -79,5 +76,6 @@ SWIGCDATA cdata_##NAME(TYPE *ptr, int nelements);
 
 %cdata(void);
 
-/* Memory move function */
+/* Memory move function. Due to multi-argument typemaps this appears to be wrapped as
+void memmove(void *data, const char *s); */
 void memmove(void *data, const void *indata, int inlen);

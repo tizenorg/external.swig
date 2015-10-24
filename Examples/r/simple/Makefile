@@ -3,14 +3,13 @@ SWIG       = $(TOP)/../preinst-swig
 SRCS       = example.c
 TARGET     = example
 INTERFACE  = example.i
-ARGS = SRCS='$(SRCS)' SWIG='$(SWIG)' \
-	TARGET='$(TARGET)' INTERFACE='$(INTERFACE)'
 
-all::
-	$(MAKE) -f $(TOP)/Makefile $(ARGS) r
+check: build
+	$(MAKE) -f $(TOP)/Makefile r_run
 
-clean::
-	$(MAKE) -f $(TOP)/Makefile $(ARGS) r_clean
+build:
+	$(MAKE) -f $(TOP)/Makefile SRCS='$(SRCS)' SWIG='$(SWIG)' \
+	TARGET='$(TARGET)' INTERFACE='$(INTERFACE)' r
 
-check: all
-	R CMD BATCH runme.R
+clean:
+	$(MAKE) -f $(TOP)/Makefile INTERFACE='$(INTERFACE)' r_clean

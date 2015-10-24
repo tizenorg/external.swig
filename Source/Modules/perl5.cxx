@@ -1,17 +1,15 @@
-/* -*- mode: c++; c-basic-offset: 2; indent-tabs-mode: nil; -*-
- *  vim:expandtab:shiftwidth=2:tabstop=8:smarttab:
- */
-
 /* ----------------------------------------------------------------------------
- * See the LICENSE file for information on copyright, usage and redistribution
- * of SWIG, and the README file for authors - http://www.swig.org/release.html.
+ * This file is part of SWIG, which is licensed as a whole under version 3 
+ * (or any later version) of the GNU General Public License. Some additional
+ * terms also apply to certain portions of SWIG. The full details of the SWIG
+ * license and copyrights can be found in the LICENSE and COPYRIGHT files
+ * included with the SWIG source code as distributed by the SWIG developers
+ * and at http://www.swig.org/legal.html.
  *
  * perl5.cxx
  *
  * Perl5 language module for SWIG.
  * ------------------------------------------------------------------------- */
-
-char cvsroot_perl5_cxx[] = "$Id: perl5.cxx 11397 2009-07-15 07:43:16Z olly $";
 
 #include "swigmod.h"
 #include "cparse.h"
@@ -21,14 +19,15 @@ static int treduce = SWIG_cparse_template_reduce(0);
 
 static const char *usage = (char *) "\
 Perl5 Options (available with -perl5)\n\
-     -static         - Omit code related to dynamic loading\n\
-     -nopm           - Do not generate the .pm file\n\
-     -proxy          - Create proxy classes\n\
-     -noproxy        - Don't create proxy classes\n\
+     -compat         - Compatibility mode\n\
      -const          - Wrap constants as constants and not variables (implies -proxy)\n\
-     -nocppcast      - Disable C++ casting operators, useful for generating bugs\n\
      -cppcast        - Enable C++ casting operators\n\
-     -compat         - Compatibility mode\n\n";
+     -nocppcast      - Disable C++ casting operators, useful for generating bugs\n\
+     -nopm           - Do not generate the .pm file\n\
+     -noproxy        - Don't create proxy classes\n\
+     -proxy          - Create proxy classes\n\
+     -static         - Omit code related to dynamic loading\n\
+\n";
 
 static int compat = 0;
 
@@ -131,7 +130,7 @@ public:
   Node *is_shadow(SwigType *t) {
     Node *n;
     n = classLookup(t);
-    /*  Printf(stdout,"'%s' --> '%x'\n", t, n); */
+    /*  Printf(stdout,"'%s' --> '%p'\n", t, n); */
     if (n) {
       if (!Getattr(n, "perl5:proxy")) {
 	setclassname(n);
@@ -308,7 +307,7 @@ public:
     if (no_pmfile) {
       f_pm = NewString(0);
     } else {
-      if (pmfile == NULL) {
+      if (!pmfile) {
 	char *m = Char(module) + Len(module);
 	while (m != Char(module)) {
 	  if (*m == ':') {
@@ -519,7 +518,6 @@ public:
     Printf(f_pm, "%s", additional_perl_code);
 
     Printf(f_pm, "1;\n");
-    Close(f_pm);
     Delete(f_pm);
     Delete(base);
     Delete(dest_package);
@@ -533,7 +531,6 @@ public:
     Delete(f_header);
     Delete(f_wrappers);
     Delete(f_init);
-    Close(f_begin);
     Delete(f_runtime);
     Delete(f_begin);
     return SWIG_OK;
@@ -613,7 +610,6 @@ public:
     Printf(f->code, "}\n");
 
     /* Write code to extract parameters. */
-    i = 0;
     for (i = 0, p = l; i < num_arguments; i++) {
 
       /* Skip ignored arguments */
@@ -729,9 +725,9 @@ public:
     Swig_director_emit_dynamic_cast(n, f);
     String *actioncode = emit_action(n);
 
-    if ((tm = Swig_typemap_lookup_out("out", n, "result", f, actioncode))) {
+    if ((tm = Swig_typemap_lookup_out("out", n, Swig_cresult_name(), f, actioncode))) {
       SwigType *t = Getattr(n, "type");
-      Replaceall(tm, "$source", "result");
+      Replaceall(tm, "$source", Swig_cresult_name());
       Replaceall(tm, "$target", "ST(argvi)");
       Replaceall(tm, "$result", "ST(argvi)");
       if (is_shadow(t)) {
@@ -759,14 +755,14 @@ public:
     Printv(f->code, cleanup, NIL);
 
     if (GetFlag(n, "feature:new")) {
-      if ((tm = Swig_typemap_lookup("newfree", n, "result", 0))) {
-	Replaceall(tm, "$source", "result");
+      if ((tm = Swig_typemap_lookup("newfree", n, Swig_cresult_name(), 0))) {
+	Replaceall(tm, "$source", Swig_cresult_name());
 	Printf(f->code, "%s\n", tm);
       }
     }
 
-    if ((tm = Swig_typemap_lookup("ret", n, "result", 0))) {
-      Replaceall(tm, "$source", "result");
+    if ((tm = Swig_typemap_lookup("ret", n, Swig_cresult_name(), 0))) {
+      Replaceall(tm, "$source", Swig_cresult_name());
       Printf(f->code, "%s\n", tm);
     }
 
@@ -791,7 +787,7 @@ public:
     } else if (!Getattr(n, "sym:nextSibling")) {
       /* Generate overloaded dispatch function */
       int maxargs;
-      String *dispatch = Swig_overload_dispatch_cast(n, "++PL_markstack_ptr; SWIG_CALLXS(%s); return;", &maxargs);
+      String *dispatch = Swig_overload_dispatch_cast(n, "PUSHMARK(MARK); SWIG_CALLXS(%s); return;", &maxargs);
 
       /* Generate a dispatch wrapper for all overloaded functions */
 
@@ -840,8 +836,8 @@ public:
     SwigType *t = Getattr(n, "type");
     Wrapper *getf, *setf;
     String *tm;
-    String *getname = Swig_name_get(iname);
-    String *setname = Swig_name_set(iname);
+    String *getname = Swig_name_get(NSPACE_TODO, iname);
+    String *setname = Swig_name_set(NSPACE_TODO, iname);
 
     String *get_name = Swig_name_wrapper(getname);
     String *set_name = Swig_name_wrapper(setname);
@@ -869,6 +865,8 @@ public:
 	emit_action_code(n, setf->code, tm);
       } else {
 	Swig_warning(WARN_TYPEMAP_VARIN_UNDEF, input_file, line_number, "Unable to set variable of type %s.\n", SwigType_str(t, 0));
+	DelWrapper(setf);
+	DelWrapper(getf);
 	return SWIG_NOWRAP;
       }
       Printf(setf->code, "fail:\n");
@@ -1432,12 +1430,12 @@ public:
 
       if (Getattr(n, "feature:shadow")) {
 	String *plcode = perlcode(Getattr(n, "feature:shadow"), 0);
-	String *plaction = NewStringf("%s::%s", cmodule, Swig_name_member(class_name, symname));
+	String *plaction = NewStringf("%s::%s", cmodule, Swig_name_member(NSPACE_TODO, class_name, symname));
 	Replaceall(plcode, "$action", plaction);
 	Delete(plaction);
 	Printv(pcode, plcode, NIL);
       } else {
-	Printv(pcode, "*", symname, " = *", cmodule, "::", Swig_name_member(class_name, symname), ";\n", NIL);
+	Printv(pcode, "*", symname, " = *", cmodule, "::", Swig_name_member(NSPACE_TODO, class_name, symname), ";\n", NIL);
       }
     }
     return SWIG_OK;
@@ -1462,8 +1460,8 @@ public:
 
     if (blessed) {
 
-      Printv(pcode, "*swig_", symname, "_get = *", cmodule, "::", Swig_name_get(Swig_name_member(class_name, symname)), ";\n", NIL);
-      Printv(pcode, "*swig_", symname, "_set = *", cmodule, "::", Swig_name_set(Swig_name_member(class_name, symname)), ";\n", NIL);
+      Printv(pcode, "*swig_", symname, "_get = *", cmodule, "::", Swig_name_get(NSPACE_TODO, Swig_name_member(NSPACE_TODO, class_name, symname)), ";\n", NIL);
+      Printv(pcode, "*swig_", symname, "_set = *", cmodule, "::", Swig_name_set(NSPACE_TODO, Swig_name_member(NSPACE_TODO, class_name, symname)), ";\n", NIL);
 
       /* Now we need to generate a little Perl code for this */
 
@@ -1501,7 +1499,7 @@ public:
     if ((blessed) && (!Getattr(n, "sym:nextSibling"))) {
       if (Getattr(n, "feature:shadow")) {
 	String *plcode = perlcode(Getattr(n, "feature:shadow"), 0);
-	String *plaction = NewStringf("%s::%s", module, Swig_name_member(class_name, symname));
+	String *plaction = NewStringf("%s::%s", module, Swig_name_member(NSPACE_TODO, class_name, symname));
 	Replaceall(plcode, "$action", plaction);
 	Delete(plaction);
 	Printv(pcode, plcode, NIL);
@@ -1511,12 +1509,12 @@ public:
 	  Printf(pcode, "sub new {\n");
 	} else {
 	  /* Constructor doesn't match classname so we'll just use the normal name  */
-	  Printv(pcode, "sub ", Swig_name_construct(symname), " {\n", NIL);
+	  Printv(pcode, "sub ", Swig_name_construct(NSPACE_TODO, symname), " {\n", NIL);
 	}
 
 	Printv(pcode,
 	       tab4, "my $pkg = shift;\n",
-	       tab4, "my $self = ", cmodule, "::", Swig_name_construct(symname), "(@_);\n", tab4, "bless $self, $pkg if defined($self);\n", "}\n\n", NIL);
+	       tab4, "my $self = ", cmodule, "::", Swig_name_construct(NSPACE_TODO, symname), "(@_);\n", tab4, "bless $self, $pkg if defined($self);\n", "}\n\n", NIL);
 
 	have_constructor = 1;
       }
@@ -1536,7 +1534,7 @@ public:
     if (blessed) {
       if (Getattr(n, "feature:shadow")) {
 	String *plcode = perlcode(Getattr(n, "feature:shadow"), 0);
-	String *plaction = NewStringf("%s::%s", module, Swig_name_member(class_name, symname));
+	String *plaction = NewStringf("%s::%s", module, Swig_name_member(NSPACE_TODO, class_name, symname));
 	Replaceall(plcode, "$action", plaction);
 	Delete(plaction);
 	Printv(pcode, plcode, NIL);
@@ -1548,7 +1546,7 @@ public:
 	       tab4, "return unless defined $self;\n",
 	       tab4, "delete $ITERATORS{$self};\n",
 	       tab4, "if (exists $OWNER{$self}) {\n",
-	       tab8, cmodule, "::", Swig_name_destroy(symname), "($self);\n", tab8, "delete $OWNER{$self};\n", tab4, "}\n}\n\n", NIL);
+	       tab8, cmodule, "::", Swig_name_destroy(NSPACE_TODO, symname), "($self);\n", tab8, "delete $OWNER{$self};\n", tab4, "}\n}\n\n", NIL);
 	have_destructor = 1;
       }
     }
@@ -1566,7 +1564,7 @@ public:
     member_func = 0;
     if ((blessed) && (!Getattr(n, "sym:nextSibling"))) {
       String *symname = Getattr(n, "sym:name");
-      Printv(pcode, "*", symname, " = *", cmodule, "::", Swig_name_member(class_name, symname), ";\n", NIL);
+      Printv(pcode, "*", symname, " = *", cmodule, "::", Swig_name_member(NSPACE_TODO, class_name, symname), ";\n", NIL);
     }
     return SWIG_OK;
   }
@@ -1579,7 +1577,7 @@ public:
     Language::staticmembervariableHandler(n);
     if (blessed) {
       String *symname = Getattr(n, "sym:name");
-      Printv(pcode, "*", symname, " = *", cmodule, "::", Swig_name_member(class_name, symname), ";\n", NIL);
+      Printv(pcode, "*", symname, " = *", cmodule, "::", Swig_name_member(NSPACE_TODO, class_name, symname), ";\n", NIL);
     }
     return SWIG_OK;
   }
@@ -1598,7 +1596,7 @@ public:
     blessed = oldblessed;
 
     if (blessed) {
-      Printv(pcode, "*", symname, " = *", cmodule, "::", Swig_name_member(class_name, symname), ";\n", NIL);
+      Printv(pcode, "*", symname, " = *", cmodule, "::", Swig_name_member(NSPACE_TODO, class_name, symname), ";\n", NIL);
     }
     return SWIG_OK;
   }
@@ -1631,17 +1629,17 @@ public:
 	  if (value) {
 	    FILE *f = Swig_include_open(value);
 	    if (!f) {
-	      Printf(stderr, "%s : Line %d. Unable to locate file %s\n", input_file, line_number, value);
+	      Swig_error(input_file, line_number, "Unable to locate file %s\n", value);
 	    } else {
 	      char buffer[4096];
 	      while (fgets(buffer, 4095, f)) {
 		Printf(pragma_include, "%s", buffer);
 	      }
+	      fclose(f);
 	    }
-	    fclose(f);
 	  }
 	} else {
-	  Printf(stderr, "%s : Line %d. Unrecognized pragma.\n", input_file, line_number);
+	  Swig_error(input_file, line_number, "Unrecognized pragma.\n");
 	}
       }
     }
@@ -1668,7 +1666,7 @@ public:
     }
 
     /* Split the input text into lines */
-    List *clist = DohSplitLines(temp);
+    List *clist = SplitLines(temp);
     Delete(temp);
     int initial = 0;
     String *s = 0;

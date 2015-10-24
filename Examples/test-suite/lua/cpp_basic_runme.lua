@@ -3,7 +3,9 @@ import("cpp_basic")	-- import code
 cb=cpp_basic    -- renaming import
 
 -- catch "undefined" global variables
-setmetatable(getfenv(),{__index=function (t,i) error("undefined global variable `"..i.."'",2) end})
+local env = _ENV -- Lua 5.2
+if not env then env = getfenv () end -- Lua 5.1
+setmetatable(env, {__index=function (t,i) error("undefined global variable `"..i.."'",2) end})
 
 f=cb.Foo(4)
 assert(f.num==4)
@@ -40,16 +42,22 @@ assert(f3.num==32)
 f4=cb.Foo(6)
 cb.Bar_global_fptr=f4
 assert(cb.Bar_global_fptr.num==6)
+assert(cb.Bar.global_fptr.num==6)
 f4.num=8
 assert(cb.Bar_global_fptr.num==8)
+assert(cb.Bar.global_fptr.num==8)
 
 assert(cb.Bar_global_fref.num==23)
+assert(cb.Bar.global_fref.num==23)
 cb.Bar_global_fref=cb.Foo(-7) -- this will set the value
 assert(cb.Bar_global_fref.num==-7)
+assert(cb.Bar.global_fref.num==-7)
 
 assert(cb.Bar_global_fval.num==3)
+assert(cb.Bar.global_fval.num==3)
 cb.Bar_global_fval=cb.Foo(-34)
 assert(cb.Bar_global_fval.num==-34)
+assert(cb.Bar.global_fval.num==-34)
 
 -- Now test member function pointers
 func1_ptr=cb.get_func1_ptr()

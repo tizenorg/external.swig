@@ -1,7 +1,4 @@
 /* -----------------------------------------------------------------------------
- * See the LICENSE file for information on copyright, usage and redistribution
- * of SWIG, and the README file for authors - http://www.swig.org/release.html.
- *
  * reference.i
  *
  * Accept Perl references as pointers
@@ -88,7 +85,7 @@ as follows :
   }
   tempsv = SvRV($input);
   if (!SvIOK(tempsv)) {
-    SWIG_croak("expected a integer reference");
+    SWIG_croak("expected an integer reference");
   }
   dvalue = SvIV(tempsv);
   $1 = &dvalue;
@@ -102,7 +99,7 @@ as follows :
   }
   tempsv = SvRV($input);
   if (!SvIOK(tempsv)) {
-    SWIG_croak("expected a integer reference");
+    SWIG_croak("expected an integer reference");
   }
   dvalue = (short) SvIV(tempsv);
   $1 = &dvalue;
@@ -115,7 +112,7 @@ as follows :
   }
   tempsv = SvRV($input);
   if (!SvIOK(tempsv)) {
-    SWIG_croak("expected a integer reference");
+    SWIG_croak("expected an integer reference");
   }
   dvalue = (long) SvIV(tempsv);
   $1 = &dvalue;
@@ -128,7 +125,7 @@ as follows :
   }
   tempsv = SvRV($input);
   if (!SvIOK(tempsv)) {
-    SWIG_croak("expected a integer reference");
+    SWIG_croak("expected an integer reference");
   }
   dvalue = (unsigned int) SvUV(tempsv);
   $1 = &dvalue;
@@ -141,7 +138,7 @@ as follows :
   }
   tempsv = SvRV($input);
   if (!SvIOK(tempsv)) {
-    SWIG_croak("expected a integer reference");
+    SWIG_croak("expected an integer reference");
   }
   dvalue = (unsigned short) SvUV(tempsv);
   $1 = &dvalue;
@@ -154,7 +151,7 @@ as follows :
   }
   tempsv = SvRV($input);
   if (!SvIOK(tempsv)) {
-    SWIG_croak("expected a integer reference");
+    SWIG_croak("expected an integer reference");
   }
   dvalue = (unsigned long) SvUV(tempsv);
   $1 = &dvalue;
@@ -168,7 +165,7 @@ as follows :
   }
   tempsv = SvRV($input);
   if (!SvIOK(tempsv)) {
-    SWIG_croak("expected a integer reference");
+    SWIG_croak("expected an integer reference");
   }
   dvalue = (unsigned char) SvUV(tempsv);
   $1 = &dvalue;
@@ -182,7 +179,7 @@ as follows :
   }
   tempsv = SvRV($input);
   if (!SvIOK(tempsv)) {
-    SWIG_croak("expected a integer reference");
+    SWIG_croak("expected an integer reference");
   }
   dvalue = (signed char) SvIV(tempsv);
   $1 = &dvalue;
@@ -196,9 +193,9 @@ as follows :
   }
   tempsv = SvRV($input);
   if (!SvIOK(tempsv)) {
-    SWIG_croak("expected a integer reference");
+    SWIG_croak("expected an integer reference");
   }
-  dvalue = (bool) SvIV(tempsv);
+  dvalue = SvIV(tempsv) ? true : false;
   $1 = &dvalue;
 }
 

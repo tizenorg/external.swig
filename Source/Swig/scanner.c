@@ -1,6 +1,10 @@
 /* ----------------------------------------------------------------------------- 
- * See the LICENSE file for information on copyright, usage and redistribution
- * of SWIG, and the README file for authors - http://www.swig.org/release.html.
+ * This file is part of SWIG, which is licensed as a whole under version 3 
+ * (or any later version) of the GNU General Public License. Some additional
+ * terms also apply to certain portions of SWIG. The full details of the SWIG
+ * license and copyrights can be found in the LICENSE and COPYRIGHT files
+ * included with the SWIG source code as distributed by the SWIG developers
+ * and at http://www.swig.org/legal.html.
  *
  * scanner.c
  *
@@ -10,13 +14,13 @@
  * to easily construct yacc-compatible scanners.
  * ----------------------------------------------------------------------------- */
 
-char cvsroot_scanner_c[] = "$Id: scanner.c 11470 2009-07-29 20:50:39Z wsfulton $";
-
 #include "swig.h"
 #include <ctype.h>
 
 extern String *cparse_file;
-extern int     cparse_start_line;
+extern int cparse_line;
+extern int cparse_cplusplus;
+extern int cparse_start_line;
 
 struct Scanner {
   String *text;			/* Current token value */
@@ -32,6 +36,13 @@ struct Scanner {
   int     error_line;           /* Error line number */
   int     freeze_line;          /* Suspend line number updates */
 };
+
+typedef struct Locator {
+  String         *filename;
+  int             line_number;
+  struct Locator *next;
+} Locator;
+static int follow_locators = 0;
 
 /* -----------------------------------------------------------------------------
  * NewScanner()
@@ -52,6 +63,7 @@ Scanner *NewScanner(void) {
   s->text = NewStringEmpty();
   s->str = 0;
   s->error = 0;
+  s->error_line = 0;
   s->freeze_line = 0;
   return s;
 }
@@ -91,6 +103,12 @@ void Scanner_clear(Scanner * s) {
   s->nexttoken = -1;
   s->start_line = 0;
   s->yylen = 0;
+  /* Should these be cleared too?
+  s->idstart;
+  s->file;
+  s->error_line;
+  s->freeze_line;
+  */
 }
 
 /* -----------------------------------------------------------------------------
@@ -196,10 +214,8 @@ static char nextchar(Scanner * s) {
     if (Len(s->scanobjs) == 0)
       return 0;
     s->str = Getitem(s->scanobjs, 0);
-    if (s->str) {
-      s->line = Getline(s->str);
-      DohIncref(s->str);
-    }
+    s->line = Getline(s->str);
+    DohIncref(s->str);
   }
   if ((nc == '\n') && (!s->freeze_line)) 
     s->line++;
@@ -225,8 +241,7 @@ static void set_error(Scanner *s, int line, const_String_or_char_ptr msg) {
  * Returns error information (if any)
  * ----------------------------------------------------------------------------- */
 
-String *
-Scanner_errmsg(Scanner *s) {
+String *Scanner_errmsg(Scanner *s) {
   return s->error;
 }
 
@@ -236,13 +251,12 @@ Scanner_errline(Scanner *s) {
 }
 
 /* -----------------------------------------------------------------------------
- * Scanner_freeze_line()
+ * freeze_line()
  *
  * Freezes the current line number.
  * ----------------------------------------------------------------------------- */
 
-void
-Scanner_freeze_line(Scanner *s, int val) {
+static void freeze_line(Scanner *s, int val) {
   s->freeze_line = val;
 }
 
@@ -262,7 +276,7 @@ static void retract(Scanner * s, int n) {
     if (str[l - 1] == '\n') {
       if (!s->freeze_line) s->line--;
     }
-    Seek(s->str, -1, SEEK_CUR);
+    (void)Seek(s->str, -1, SEEK_CUR);
     Delitem(s->text, DOH_END);
   }
 }
@@ -730,13 +744,23 @@ static int look(Scanner * s) {
       break;
     case 7:			/* Identifier */
       if ((c = nextchar(s)) == 0)
-	return SWIG_TOKEN_ID;
-      if (isalnum(c) || (c == '_') || (c == '$')) {
+	state = 71;
+      else if (isalnum(c) || (c == '_') || (c == '$')) {
 	state = 7;
       } else {
 	retract(s, 1);
-	return SWIG_TOKEN_ID;
+	state = 71;
       }
+      break;
+
+    case 71:			/* Identifier or true/false */
+      if (cparse_cplusplus) {
+	if (Strcmp(s->text, "true") == 0)
+	  return SWIG_TOKEN_BOOL;
+	else if (Strcmp(s->text, "false") == 0)
+	  return SWIG_TOKEN_BOOL;
+	}
+      return SWIG_TOKEN_ID;
       break;
 
     case 75:			/* Special identifier $ */
@@ -747,7 +771,7 @@ static int look(Scanner * s) {
       } else {
 	retract(s,1);
 	if (Len(s->text) == 1) return SWIG_TOKEN_DOLLAR;
-	return SWIG_TOKEN_ID;
+	state = 71;
       }
       break;
 
@@ -1117,7 +1141,7 @@ void Scanner_skip_line(Scanner * s) {
     if ((c = nextchar(s)) == 0)
       return;
     if (c == '\\') {
-      c = nextchar(s);
+      nextchar(s);
     } else if (c == '\n') {
       done = 1;
     }
@@ -1135,10 +1159,9 @@ void Scanner_skip_line(Scanner * s) {
 int Scanner_skip_balanced(Scanner * s, int startchar, int endchar) {
   char c;
   int num_levels = 1;
-  int l;
   int state = 0;
   char temp[2] = { 0, 0 };
-  l = s->line;
+  String *locator = 0;
   temp[0] = (char) startchar;
   Clear(s->text);
   Setfile(s->text, Getfile(s->str));
@@ -1147,6 +1170,7 @@ int Scanner_skip_balanced(Scanner * s, int startchar, int endchar) {
   Append(s->text, temp);
   while (num_levels > 0) {
     if ((c = nextchar(s)) == 0) {
+      Delete(locator);
       return -1;
     }
     switch (state) {
@@ -1167,6 +1191,10 @@ int Scanner_skip_balanced(Scanner * s, int startchar, int endchar) {
 	state = 11;
       else if (c == '*')
 	state = 12;
+      else if (c == startchar) {
+	state = 0;
+	num_levels++;
+      }
       else
 	state = 0;
       break;
@@ -1176,17 +1204,25 @@ int Scanner_skip_balanced(Scanner * s, int startchar, int endchar) {
       else
 	state = 11;
       break;
-    case 12:
+    case 12: /* first character inside C comment */
       if (c == '*')
+	state = 14;
+      else if (c == '@')
+	state = 40;
+      else
 	state = 13;
       break;
     case 13:
       if (c == '*')
-	state = 13;
+	state = 14;
+      break;
+    case 14: /* possible end of C comment */
+      if (c == '*')
+	state = 14;
       else if (c == '/')
 	state = 0;
       else
-	state = 12;
+	state = 13;
       break;
     case 20:
       if (c == '\"')
@@ -1206,10 +1242,43 @@ int Scanner_skip_balanced(Scanner * s, int startchar, int endchar) {
     case 31:
       state = 30;
       break;
+    /* 40-45 SWIG locator checks - a C comment with contents starting: @SWIG */
+    case 40:
+      state = (c == 'S') ? 41 : (c == '*') ? 14 : 13;
+      break;
+    case 41:
+      state = (c == 'W') ? 42 : (c == '*') ? 14 : 13;
+      break;
+    case 42:
+      state = (c == 'I') ? 43 : (c == '*') ? 14 : 13;
+      break;
+    case 43:
+      state = (c == 'G') ? 44 : (c == '*') ? 14 : 13;
+      if (c == 'G') {
+	Delete(locator);
+	locator = NewString("/*@SWIG");
+      }
+      break;
+    case 44:
+      if (c == '*')
+	state = 45;
+      Putc(c, locator);
+      break;
+    case 45: /* end of SWIG locator in C comment */
+      if (c == '/') {
+	state = 0;
+	Putc(c, locator);
+	Scanner_locator(s, locator);
+      } else {
+	/* malformed locator */
+	state = (c == '*') ? 14 : 13;
+      }
+      break;
     default:
       break;
     }
   }
+  Delete(locator);
   return 0;
 }
 
@@ -1220,8 +1289,98 @@ int Scanner_skip_balanced(Scanner * s, int startchar, int endchar) {
  * operator.
  * ----------------------------------------------------------------------------- */
 
-int
-Scanner_isoperator(int tokval) {
+int Scanner_isoperator(int tokval) {
   if (tokval >= 100) return 1;
   return 0;
 }
+
+/* ----------------------------------------------------------------------
+ * locator()
+ *
+ * Support for locator strings. These are strings of the form
+ * @SWIG:filename,line,id@ emitted by the SWIG preprocessor.  They
+ * are primarily used for macro line number reporting.
+ * We just use the locator to mark when to activate/deactivate linecounting.
+ * ---------------------------------------------------------------------- */
+
+
+void Scanner_locator(Scanner *s, String *loc) {
+  static Locator *locs = 0;
+  static int expanding_macro = 0;
+
+  if (!follow_locators) {
+    if (Equal(loc, "/*@SWIG@*/")) {
+      /* End locator. */
+      if (expanding_macro)
+	--expanding_macro;
+    } else {
+      /* Begin locator. */
+      ++expanding_macro;
+    }
+    /* Freeze line number processing in Scanner */
+    freeze_line(s,expanding_macro);
+  } else {
+    int c;
+    Locator *l;
+    (void)Seek(loc, 7, SEEK_SET);
+    c = Getc(loc);
+    if (c == '@') {
+      /* Empty locator.  We pop the last location off */
+      if (locs) {
+	Scanner_set_location(s, locs->filename, locs->line_number);
+	cparse_file = locs->filename;
+	cparse_line = locs->line_number;
+	l = locs->next;
+	free(locs);
+	locs = l;
+      }
+      return;
+    }
+
+    /* We're going to push a new location */
+    l = (Locator *) malloc(sizeof(Locator));
+    l->filename = cparse_file;
+    l->line_number = cparse_line;
+    l->next = locs;
+    locs = l;
+
+    /* Now, parse the new location out of the locator string */
+    {
+      String *fn = NewStringEmpty();
+      /*      Putc(c, fn); */
+      
+      while ((c = Getc(loc)) != EOF) {
+	if ((c == '@') || (c == ','))
+	  break;
+	Putc(c, fn);
+      }
+      cparse_file = Swig_copy_string(Char(fn));
+      Clear(fn);
+      cparse_line = 1;
+      /* Get the line number */
+      while ((c = Getc(loc)) != EOF) {
+	if ((c == '@') || (c == ','))
+	  break;
+	Putc(c, fn);
+      }
+      cparse_line = atoi(Char(fn));
+      Clear(fn);
+      
+      /* Get the rest of it */
+      while ((c = Getc(loc)) != EOF) {
+	if (c == '@')
+	  break;
+	Putc(c, fn);
+      }
+      /*  Swig_diagnostic(cparse_file, cparse_line, "Scanner_set_location\n"); */
+      Scanner_set_location(s, cparse_file, cparse_line);
+      Delete(fn);
+    }
+  }
+}
+
+void Swig_cparse_follow_locators(int v) {
+   follow_locators = v;
+}
+
+

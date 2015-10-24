@@ -8,6 +8,7 @@
 %warnfilter(SWIGWARN_RUBY_WRONG_NAME) globalinstance1;
 %warnfilter(SWIGWARN_RUBY_WRONG_NAME) globalinstance2;
 %warnfilter(SWIGWARN_RUBY_WRONG_NAME) globalinstance3;
+%warnfilter(SWIGWARN_TYPEMAP_SWIGTYPELEAK);
 
 %inline %{
 
@@ -57,6 +58,11 @@ typedef struct _Foo {
   
 %warnfilter(SWIGWARN_RUBY_WRONG_NAME) _iFoo;
 
+#ifdef SWIGD
+/* Work around missing support for proper char quoting due to parser shortcomings. */
+%dconstvalue("'a'") _iFoo::Char;
+#endif
+
 #ifndef __cplusplus
 %inline %{
 typedef struct _iFoo 
@@ -64,7 +70,7 @@ typedef struct _iFoo
     enum { 
       Phoo = +50,
       Char = 'a'
-    } e; 
+    } e;
 } iFoo; 
 %}
 #else
@@ -77,5 +83,20 @@ struct iFoo
     }; 
 }; 
 %}
-
 #endif
+
+// enum declaration and initialization
+%inline %{
+enum Exclamation {
+  goodness,
+  gracious,
+  me
+} enumInstance = me;
+
+enum ContainYourself {
+  slap = 10,
+  mine,
+  thigh
+} Slap = slap, Mine = mine, Thigh = thigh, *pThigh = &Thigh, arrayContainYourself[3] = {slap, mine, thigh};
+%}
+

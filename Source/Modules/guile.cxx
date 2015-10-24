@@ -1,32 +1,29 @@
 /* ----------------------------------------------------------------------------- 
- * See the LICENSE file for information on copyright, usage and redistribution
- * of SWIG, and the README file for authors - http://www.swig.org/release.html.
+ * This file is part of SWIG, which is licensed as a whole under version 3 
+ * (or any later version) of the GNU General Public License. Some additional
+ * terms also apply to certain portions of SWIG. The full details of the SWIG
+ * license and copyrights can be found in the LICENSE and COPYRIGHT files
+ * included with the SWIG source code as distributed by the SWIG developers
+ * and at http://www.swig.org/legal.html.
  *
  * guile.cxx
  *
  * Guile language module for SWIG.
  * ----------------------------------------------------------------------------- */
 
-char cvsroot_guile_cxx[] = "$Id: guile.cxx 11133 2009-02-20 07:52:24Z wsfulton $";
-
 #include "swigmod.h"
 
 #include <ctype.h>
 
 // Note string broken in half for compilers that can't handle long strings
-static const char *guile_usage = (char *) "\
+static const char *usage = (char *) "\
 Guile Options (available with -guile)\n\
-     -prefix <name>          - Use <name> as prefix [default \"gswig_\"]\n\
-     -package <name>         - Set the path of the module to <name>\n\
-                               (default NULL)\n\
      -emitsetters            - Emit procedures-with-setters for variables\n\
                                and structure slots.\n\
-     -onlysetters            - Don't emit traditional getter and setter\n\
-                               procedures for structure slots,\n\
-                               only emit procedures-with-setters.\n\
-     -procdoc <file>         - Output procedure documentation to <file>\n\
-     -procdocformat <format> - Output procedure documentation in <format>;\n\
-                               one of `guile-1.4', `plain', `texinfo'\n\
+     -emitslotaccessors      - Emit accessor methods for all GOOPS slots\n" "\
+     -exportprimitive        - Add the (export ...) code from scmstub into the\n\
+                               GOOPS file.\n\
+     -goopsprefix <prefix>   - Prepend <prefix> to all goops identifiers\n\
      -linkage <lstyle>       - Use linkage protocol <lstyle> (default `simple')\n\
                                Use `module' for native Guile module linking\n\
                                (requires Guile >= 1.5.0).  Use `passive' for\n\
@@ -34,18 +31,22 @@ Guile Options (available with -guile)\n\
                                `ltdlmod' for Guile's old dynamic module\n\
                                convention (Guile <= 1.4), or `hobbit' for hobbit\n\
                                modules.\n\
-     -scmstub                - Output Scheme file with module declaration and\n\
-                               exports; only with `passive' and `simple' linkage\n\
-     -gh                     - Use the gh_ Guile API. (Guile <= 1.8) \n\
-     -scm                    - Use the scm Guile API. (Guile >= 1.6, default) \n\
+     -onlysetters            - Don't emit traditional getter and setter\n\
+                               procedures for structure slots,\n\
+                               only emit procedures-with-setters.\n\
+     -package <name>         - Set the path of the module to <name>\n\
+                               (default NULL)\n\
+     -prefix <name>          - Use <name> as prefix [default \"gswig_\"]\n\
+     -procdoc <file>         - Output procedure documentation to <file>\n\
+     -procdocformat <format> - Output procedure documentation in <format>;\n\
+                               one of `guile-1.4', `plain', `texinfo'\n\
      -proxy                  - Export GOOPS class definitions\n\
-     -emitslotaccessors      - Emit accessor methods for all GOOPS slots\n" "\
      -primsuffix <suffix>    - Name appended to primitive module when exporting\n\
                                GOOPS classes. (default = \"primitive\")\n\
-     -goopsprefix <prefix>   - Prepend <prefix> to all goops identifiers\n\
+     -scmstub                - Output Scheme file with module declaration and\n\
+                               exports; only with `passive' and `simple' linkage\n\
      -useclassprefix         - Prepend the class name to all goops identifiers\n\
-     -exportprimitive        - Add the (export ...) code from scmstub into the\n\
-                               GOOPS file.\n";
+\n";
 
 static File *f_begin = 0;
 static File *f_runtime = 0;
@@ -54,9 +55,9 @@ static File *f_wrappers = 0;
 static File *f_init = 0;
 
 
-static char *prefix = (char *) "gswig_";
+static String *prefix = NewString("gswig_");
 static char *module = 0;
-static char *package = 0;
+static String *package = 0;
 static enum {
   GUILE_LSTYLE_SIMPLE,		// call `SWIG_init()'
   GUILE_LSTYLE_PASSIVE,		// passive linking (no module code)
@@ -91,7 +92,6 @@ static String *return_multi_doc = 0;
 
 static String *exported_symbols = 0;
 
-static int use_scm_interface = 1;
 static int exporting_destructor = 0;
 static String *swigtype_ptr = 0;
 
@@ -110,7 +110,7 @@ static String *memberfunction_name = 0;
 
 extern "C" {
   static int has_classname(Node *class_node) {
-    return Getattr(class_node, "guile:goopsclassname") != NULL;
+    return Getattr(class_node, "guile:goopsclassname") ? 1 : 0;
   }
 }
 
@@ -122,7 +122,7 @@ public:
    * ------------------------------------------------------------ */
 
   virtual void main(int argc, char *argv[]) {
-    int i, orig_len;
+    int i;
 
      SWIG_library_directory("guile");
      SWIG_typemap_lang("guile");
@@ -131,12 +131,11 @@ public:
     for (i = 1; i < argc; i++) {
       if (argv[i]) {
 	if (strcmp(argv[i], "-help") == 0) {
-	  fputs(guile_usage, stdout);
+	  fputs(usage, stdout);
 	  SWIG_exit(EXIT_SUCCESS);
 	} else if (strcmp(argv[i], "-prefix") == 0) {
 	  if (argv[i + 1]) {
-	    prefix = new char[strlen(argv[i + 1]) + 2];
-	    strcpy(prefix, argv[i + 1]);
+	    prefix = NewString(argv[i + 1]);
 	    Swig_mark_arg(i);
 	    Swig_mark_arg(i + 1);
 	    i++;
@@ -145,8 +144,7 @@ public:
 	  }
 	} else if (strcmp(argv[i], "-package") == 0) {
 	  if (argv[i + 1]) {
-	    package = new char[strlen(argv[i + 1]) + 2];
-	    strcpy(package, argv[i + 1]);
+	    package = NewString(argv[i + 1]);
 	    Swig_mark_arg(i);
 	    Swig_mark_arg(i + 1);
 	    i++;
@@ -215,10 +213,10 @@ public:
 	  goops = true;
 	  Swig_mark_arg(i);
 	} else if (strcmp(argv[i], "-gh") == 0) {
-	  use_scm_interface = 0;
+	  Printf(stderr, "Deprecated command line option: -gh. Wrappers are always generated for the SCM interface. See documentation for more information regarding the deprecated GH interface.\n");
 	  Swig_mark_arg(i);
 	} else if (strcmp(argv[i], "-scm") == 0) {
-	  use_scm_interface = 1;
+	  Printf(stderr, "Deprecated command line option: -scm. Wrappers are always generated for the SCM interface. See documentation for more information regarding the deprecated GH interface.\n");
 	  Swig_mark_arg(i);
 	} else if (strcmp(argv[i], "-primsuffix") == 0) {
 	  if (argv[i + 1]) {
@@ -250,7 +248,7 @@ public:
     }
 
     // set default value for primsuffix
-    if (primsuffix == NULL)
+    if (!primsuffix)
       primsuffix = NewString("primitive");
 
     //goops support can only be enabled if passive or module linkage is used
@@ -273,21 +271,18 @@ public:
       // should use Swig_warning() ?
       Printf(stderr, "guile: Warning: -exportprimitive only makes sense with passive linkage without a scmstub.\n");
     }
-    // Make sure `prefix' ends in an underscore
 
-    orig_len = strlen(prefix);
-    if (prefix[orig_len - 1] != '_') {
-      prefix[1 + orig_len] = 0;
-      prefix[orig_len] = '_';
+    // Make sure `prefix' ends in an underscore
+    if (prefix) {
+      const char *px = Char(prefix);
+      if (px[Len(prefix) - 1] != '_')
+	Printf(prefix, "_");
     }
 
     /* Add a symbol for this module */
     Preprocessor_define("SWIGGUILE 1", 0);
     /* Read in default typemaps */
-    if (use_scm_interface)
-      SWIG_config_file("guile_scm.swg");
-    else
-      SWIG_config_file("guile_gh.swg");
+    SWIG_config_file("guile_scm.swg");
     allow_overloading();
 
   }
@@ -329,13 +324,6 @@ public:
 
     Printf(f_runtime, "\n");
     Printf(f_runtime, "#define SWIGGUILE\n");
-
-    if (!use_scm_interface) {
-      if (SwigRuntime == 1)
-	Printf(f_runtime, "#define SWIG_GLOBAL\n");
-      if (SwigRuntime == 2)
-	Printf(f_runtime, "#define SWIG_NOINCLUDE\n");
-    }
 
     /* Write out directives and declarations */
 
@@ -404,7 +392,6 @@ public:
     Delete(f_header);
     Delete(f_wrappers);
     Delete(f_init);
-    Close(f_begin);
     Delete(f_runtime);
     Delete(f_begin);
     return SWIG_OK;
@@ -624,7 +611,7 @@ public:
     if (maybe_delimiter && Len(output) > 0 && Len(tm) > 0) {
       Printv(output, maybe_delimiter, NIL);
     }
-    const String *pn = (name == NULL) ? (const String *) Getattr(p, "name") : name;
+    const String *pn = !name ? (const String *) Getattr(p, "name") : name;
     String *pt = Getattr(p, "type");
     Replaceall(tm, "$name", pn);	// legacy for $parmname
     Replaceall(tm, "$type", SwigType_str(pt, 0));
@@ -653,7 +640,7 @@ public:
     Parm *p;
     String *proc_name = 0;
     char source[256];
-    Wrapper *f = NewWrapper();;
+    Wrapper *f = NewWrapper();
     String *cleanup = NewString("");
     String *outarg = NewString("");
     String *signature = NewString("");
@@ -777,7 +764,7 @@ public:
 	    if (strcmp("void", Char(pt)) != 0) {
 	      Node *class_node = Swig_symbol_clookup_check(pb, Getattr(n, "sym:symtab"),
 							   has_classname);
-	      String *goopsclassname = (class_node == NULL) ? NULL : Getattr(class_node, "guile:goopsclassname");
+	      String *goopsclassname = !class_node ? NULL : Getattr(class_node, "guile:goopsclassname");
 	      /* do input conversion */
 	      if (goopsclassname) {
 		Printv(method_signature, " (", argname, " ", goopsclassname, ")", NIL);
@@ -851,7 +838,7 @@ public:
       }
     }
 
-    if (use_scm_interface && exporting_destructor) {
+    if (exporting_destructor) {
       /* Mark the destructor's argument as destroyed. */
       String *tm = NewString("SWIG_Guile_MarkPointerDestroyed($input);");
       Replaceall(tm, "$input", Getattr(l, "emit:input"));
@@ -868,19 +855,13 @@ public:
     Printv(f->def, "#define FUNC_NAME \"", proc_name, "\"", NIL);
 
     // Now write code to make the function call
-    if (!use_scm_interface)
-      Printv(f->code, tab4, "gh_defer_ints();\n", NIL);
-
     String *actioncode = emit_action(n);
 
-    if (!use_scm_interface)
-      Printv(actioncode, tab4, "gh_allow_ints();\n", NIL);
-
     // Now have return value, figure out what to do with it.
-    if ((tm = Swig_typemap_lookup_out("out", n, "result", f, actioncode))) {
+    if ((tm = Swig_typemap_lookup_out("out", n, Swig_cresult_name(), f, actioncode))) {
       Replaceall(tm, "$result", "gswig_result");
       Replaceall(tm, "$target", "gswig_result");
-      Replaceall(tm, "$source", "result");
+      Replaceall(tm, "$source", Swig_cresult_name());
       if (GetFlag(n, "feature:new"))
 	Replaceall(tm, "$owner", "1");
       else
@@ -917,14 +898,14 @@ public:
     // Look for any remaining cleanup
 
     if (GetFlag(n, "feature:new")) {
-      if ((tm = Swig_typemap_lookup("newfree", n, "result", 0))) {
-	Replaceall(tm, "$source", "result");
+      if ((tm = Swig_typemap_lookup("newfree", n, Swig_cresult_name(), 0))) {
+	Replaceall(tm, "$source", Swig_cresult_name());
 	Printv(f->code, tm, "\n", NIL);
       }
     }
     // Free any memory allocated by the function being wrapped..
-    if ((tm = Swig_typemap_lookup("ret", n, "result", 0))) {
-      Replaceall(tm, "$source", "result");
+    if ((tm = Swig_typemap_lookup("ret", n, Swig_cresult_name(), 0))) {
+      Replaceall(tm, "$source", Swig_cresult_name());
       Printv(f->code, tm, "\n", NIL);
     }
     // Wrap things up (in a manner of speaking)
@@ -958,11 +939,7 @@ public:
 	Printv(f_wrappers, ");\n", NIL);
 	Printv(f_wrappers, "}\n", NIL);
 	/* Register it */
-	if (use_scm_interface) {
-	  Printf(f_init, "scm_c_define_gsubr(\"%s\", 0, 0, 1, (swig_guile_proc) %s_rest);\n", proc_name, wname);
-	} else {
-	  Printf(f_init, "gh_new_procedure(\"%s\", (swig_guile_proc) %s_rest, 0, 0, 1);\n", proc_name, wname);
-	}
+	Printf(f_init, "scm_c_define_gsubr(\"%s\", 0, 0, 1, (swig_guile_proc) %s_rest);\n", proc_name, wname);
       } else if (emit_setters && struct_member && strlen(Char(proc_name)) > 3) {
 	int len = Len(proc_name);
 	const char *pc = Char(proc_name);
@@ -973,19 +950,13 @@ public:
 	  struct_member = 2;	/* have a setter */
 	} else
 	  Printf(f_init, "SCM getter = ");
-	if (use_scm_interface) {
-	  /* GOOPS support uses the MEMBER-set and MEMBER-get functions,
-	     so ignore only_setters in this case. */
-	  if (only_setters && !goops)
-	    Printf(f_init, "scm_c_make_gsubr(\"%s\", %d, %d, 0, (swig_guile_proc) %s);\n", proc_name, numreq, numargs - numreq, wname);
-	  else
-	    Printf(f_init, "scm_c_define_gsubr(\"%s\", %d, %d, 0, (swig_guile_proc) %s);\n", proc_name, numreq, numargs - numreq, wname);
-	} else {
-	  if (only_setters && !goops)
-	    Printf(f_init, "scm_make_gsubr(\"%s\", %d, %d, 0, (swig_guile_proc) %s);\n", proc_name, numreq, numargs - numreq, wname);
-	  else
-	    Printf(f_init, "gh_new_procedure(\"%s\", (swig_guile_proc) %s, %d, %d, 0);\n", proc_name, wname, numreq, numargs - numreq);
-	}
+	/* GOOPS support uses the MEMBER-set and MEMBER-get functions,
+	   so ignore only_setters in this case. */
+	if (only_setters && !goops)
+	  Printf(f_init, "scm_c_make_gsubr(\"%s\", %d, %d, 0, (swig_guile_proc) %s);\n", proc_name, numreq, numargs - numreq, wname);
+	else
+	  Printf(f_init, "scm_c_define_gsubr(\"%s\", %d, %d, 0, (swig_guile_proc) %s);\n", proc_name, numreq, numargs - numreq, wname);
+
 	if (!is_setter) {
 	  /* Strip off "-get" */
 	  char *pws_name = (char *) malloc(sizeof(char) * (len - 3));
@@ -993,19 +964,11 @@ public:
 	  pws_name[len - 4] = 0;
 	  if (struct_member == 2) {
 	    /* There was a setter, so create a procedure with setter */
-	    if (use_scm_interface) {
-	      Printf(f_init, "scm_c_define");
-	    } else {
-	      Printf(f_init, "gh_define");
-	    }
+	    Printf(f_init, "scm_c_define");
 	    Printf(f_init, "(\"%s\", " "scm_make_procedure_with_setter(getter, setter));\n", pws_name);
 	  } else {
 	    /* There was no setter, so make an alias to the getter */
-	    if (use_scm_interface) {
-	      Printf(f_init, "scm_c_define");
-	    } else {
-	      Printf(f_init, "gh_define");
-	    }
+	    Printf(f_init, "scm_c_define");
 	    Printf(f_init, "(\"%s\", getter);\n", pws_name);
 	  }
 	  Printf(exported_symbols, "\"%s\", ", pws_name);
@@ -1013,15 +976,11 @@ public:
 	}
       } else {
 	/* Register the function */
-	if (use_scm_interface) {
-	  if (exporting_destructor) {
-	    Printf(f_init, "((swig_guile_clientdata *)(SWIGTYPE%s->clientdata))->destroy = (guile_destructor) %s;\n", swigtype_ptr, wname);
-	    //Printf(f_init, "SWIG_TypeClientData(SWIGTYPE%s, (void *) %s);\n", swigtype_ptr, wname);
-	  }
-	  Printf(f_init, "scm_c_define_gsubr(\"%s\", %d, %d, 0, (swig_guile_proc) %s);\n", proc_name, numreq, numargs - numreq, wname);
-	} else {
-	  Printf(f_init, "gh_new_procedure(\"%s\", (swig_guile_proc) %s, %d, %d, 0);\n", proc_name, wname, numreq, numargs - numreq);
+	if (exporting_destructor) {
+	  Printf(f_init, "((swig_guile_clientdata *)(SWIGTYPE%s->clientdata))->destroy = (guile_destructor) %s;\n", swigtype_ptr, wname);
+	  //Printf(f_init, "SWIG_TypeClientData(SWIGTYPE%s, (void *) %s);\n", swigtype_ptr, wname);
 	}
+	Printf(f_init, "scm_c_define_gsubr(\"%s\", %d, %d, 0, (swig_guile_proc) %s);\n", proc_name, numreq, numargs - numreq, wname);
       }
     } else {			/* overloaded function; don't export the single methods */
       if (!Getattr(n, "sym:nextSibling")) {
@@ -1044,11 +1003,7 @@ public:
 	Printf(df->code, "#undef FUNC_NAME\n");
 	Printv(df->code, "}\n", NIL);
 	Wrapper_print(df, f_wrappers);
-	if (use_scm_interface) {
-	  Printf(f_init, "scm_c_define_gsubr(\"%s\", 0, 0, 1, (swig_guile_proc) %s);\n", proc_name, dname);
-	} else {
-	  Printf(f_init, "gh_new_procedure(\"%s\", (swig_guile_proc) %s, 0, 0, 1);\n", proc_name, dname);
-	}
+	Printf(f_init, "scm_c_define_gsubr(\"%s\", 0, 0, 1, (swig_guile_proc) %s);\n", proc_name, dname);
 	DelWrapper(df);
 	Delete(dispatch);
 	Delete(dname);
@@ -1221,36 +1176,27 @@ public:
 	/* Read-only variables become a simple procedure returning the
 	   value; read-write variables become a simple procedure with
 	   an optional argument. */
-	if (use_scm_interface) {
 
-	  if (!goops && GetFlag(n, "feature:constasvar")) {
-	    /* need to export this function as a variable instead of a procedure */
-	    if (scmstub) {
-	      /* export the function in the wrapper, and (set!) it in scmstub */
-	      Printf(f_init, "scm_c_define_gsubr(\"%s\", 0, %d, 0, (swig_guile_proc) %s);\n", proc_name, !GetFlag(n, "feature:immutable"), var_name);
-	      Printf(scmtext, "(set! %s (%s))\n", proc_name, proc_name);
-	    } else {
-	      /* export the variable directly */
-	      Printf(f_init, "scm_c_define(\"%s\", %s(SCM_UNDEFINED));\n", proc_name, var_name);
-	    }
-
-	  } else {
-	    /* Export the function as normal */
+	if (!goops && GetFlag(n, "feature:constasvar")) {
+	  /* need to export this function as a variable instead of a procedure */
+	  if (scmstub) {
+	    /* export the function in the wrapper, and (set!) it in scmstub */
 	    Printf(f_init, "scm_c_define_gsubr(\"%s\", 0, %d, 0, (swig_guile_proc) %s);\n", proc_name, !GetFlag(n, "feature:immutable"), var_name);
+	    Printf(scmtext, "(set! %s (%s))\n", proc_name, proc_name);
+	  } else {
+	    /* export the variable directly */
+	    Printf(f_init, "scm_c_define(\"%s\", %s(SCM_UNDEFINED));\n", proc_name, var_name);
 	  }
 
 	} else {
-	  Printf(f_init, "\t gh_new_procedure(\"%s\", (swig_guile_proc) %s, 0, %d, 0);\n", proc_name, var_name, !GetFlag(n, "feature:immutable"));
+	  /* Export the function as normal */
+	  Printf(f_init, "scm_c_define_gsubr(\"%s\", 0, %d, 0, (swig_guile_proc) %s);\n", proc_name, !GetFlag(n, "feature:immutable"), var_name);
 	}
+
       } else {
 	/* Read/write variables become a procedure with setter. */
-	if (use_scm_interface) {
-	  Printf(f_init, "{ SCM p = scm_c_define_gsubr(\"%s\", 0, 1, 0, (swig_guile_proc) %s);\n", proc_name, var_name);
-	  Printf(f_init, "scm_c_define");
-	} else {
-	  Printf(f_init, "\t{ SCM p = gh_new_procedure(\"%s\", (swig_guile_proc) %s, 0, 1, 0);\n", proc_name, var_name);
-	  Printf(f_init, "gh_define");
-	}
+	Printf(f_init, "{ SCM p = scm_c_define_gsubr(\"%s\", 0, 1, 0, (swig_guile_proc) %s);\n", proc_name, var_name);
+	Printf(f_init, "scm_c_define");
 	Printf(f_init, "(\"%s\", " "scm_make_procedure_with_setter(p, p)); }\n", proc_name);
       }
       Printf(exported_symbols, "\"%s\", ", proc_name);
@@ -1388,9 +1334,10 @@ public:
     }
     // See if there's a typemap
 
+    bool is_enum_item = (Cmp(nodeType(n), "enumitem") == 0);
     if (SwigType_type(nctype) == T_STRING) {
       rvalue = NewStringf("\"%s\"", value);
-    } else if (SwigType_type(nctype) == T_CHAR) {
+    } else if (SwigType_type(nctype) == T_CHAR && !is_enum_item) {
       rvalue = NewStringf("\'%s\'", value);
     } else {
       rvalue = NewString(value);
@@ -1407,16 +1354,18 @@ public:
     }
     {
       /* Hack alert: will cleanup later -- Dave */
-      Node *n = NewHash();
-      Setattr(n, "name", var_name);
-      Setattr(n, "sym:name", iname);
-      Setattr(n, "type", nctype);
-      SetFlag(n, "feature:immutable");
+      Node *nn = NewHash();
+      Setfile(nn, Getfile(n));
+      Setline(nn, Getline(n));
+      Setattr(nn, "name", var_name);
+      Setattr(nn, "sym:name", iname);
+      Setattr(nn, "type", nctype);
+      SetFlag(nn, "feature:immutable");
       if (constasvar) {
-	SetFlag(n, "feature:constasvar");
+	SetFlag(nn, "feature:constasvar");
       }
-      variableWrapper(n);
-      Delete(n);
+      variableWrapper(nn);
+      Delete(nn);
     }
     Delete(var_name);
     Delete(nctype);
@@ -1481,12 +1430,10 @@ public:
 
     String *mangled_classname = Swig_name_mangle(Getattr(n, "sym:name"));
     /* Export clientdata structure */
-    if (use_scm_interface) {
-      Printf(f_runtime, "static swig_guile_clientdata _swig_guile_clientdata%s = { NULL, SCM_EOL };\n", mangled_classname);
+    Printf(f_runtime, "static swig_guile_clientdata _swig_guile_clientdata%s = { NULL, SCM_EOL };\n", mangled_classname);
 
-      Printv(f_init, "SWIG_TypeClientData(SWIGTYPE", swigtype_ptr, ", (void *) &_swig_guile_clientdata", mangled_classname, ");\n", NIL);
-      SwigType_remember(ct);
-    }
+    Printv(f_init, "SWIG_TypeClientData(SWIGTYPE", swigtype_ptr, ", (void *) &_swig_guile_clientdata", mangled_classname, ");\n", NIL);
+    SwigType_remember(ct);
     Delete(ct);
 
     /* Emit all of the members */
@@ -1722,28 +1669,16 @@ public:
 
   String *runtimeCode() {
     String *s;
-    if (use_scm_interface) {
-      s = Swig_include_sys("guile_scm_run.swg");
-      if (!s) {
-	Printf(stderr, "*** Unable to open 'guile_scm_run.swg");
-	s = NewString("");
-      }
-    } else {
-      s = Swig_include_sys("guile_gh_run.swg");
-      if (!s) {
-	Printf(stderr, "*** Unable to open 'guile_gh_run.swg");
-	s = NewString("");
-      }
+    s = Swig_include_sys("guile_scm_run.swg");
+    if (!s) {
+      Printf(stderr, "*** Unable to open 'guile_scm_run.swg");
+      s = NewString("");
     }
     return s;
   }
 
   String *defaultExternalRuntimeFilename() {
-    if (use_scm_interface) {
-      return NewString("swigguilerun.h");
-    } else {
-      return NewString("swigguileghrun.h");
-    }
+    return NewString("swigguilerun.h");
   }
 };
 

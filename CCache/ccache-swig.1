@@ -1,41 +1,41 @@
-.TH "ccache-swig" "1" "" "" ""
+.TH "ccache\-swig" "1" "" "" ""
 
 .PP 
 .SH "NAME"
-ccache-swig \- a fast compiler cache
+ccache\-swig \- a fast compiler cache
 .PP 
 .SH "SYNOPSIS"
 
 .PP 
-ccache-swig [OPTION]
+ccache\-swig [OPTION]
 .PP 
-ccache-swig <compiler> [COMPILER OPTIONS]
+ccache\-swig <compiler> [COMPILER OPTIONS]
 .PP 
 <compiler> [COMPILER OPTIONS]
 .PP 
 .SH "DESCRIPTION"
 
 .PP 
-ccache-swig is a compiler cache\&. It speeds up re-compilation of C/C++/SWIG code 
+ccache\-swig is a compiler cache\&. It speeds up re\-compilation of C/C++/SWIG code 
 by caching previous compiles and detecting when the same compile is
-being done again\&. ccache-swig is ccache plus support for SWIG\&. ccache
-and ccache-swig are used interchangeably in this document\&.
+being done again\&. ccache\-swig is ccache plus support for SWIG\&. ccache
+and ccache\-swig are used interchangeably in this document\&.
 .PP 
 .SH "OPTIONS SUMMARY"
 
 .PP 
-Here is a summary of the options to ccache-swig\&.
+Here is a summary of the options to ccache\-swig\&.
 .PP 
 .nf 
 
--s                      show statistics summary
--z                      zero statistics
--c                      run a cache cleanup
--C                      clear the cache completely
--F <n>                  set maximum files in cache
--M <n>                  set maximum size of cache (use G, M or K)
--h                      this help page
--V                      print version number
+\-s                      show statistics summary
+\-z                      zero statistics
+\-c                      run a cache cleanup
+\-C                      clear the cache completely
+\-F <n>                  set maximum files in cache
+\-M <n>                  set maximum size of cache (use G, M or K)
+\-h                      this help page
+\-V                      print version number
 
 .fi 
 
@@ -43,44 +43,44 @@ Here is a summary of the options to ccache-swig\&.
 .SH "OPTIONS"
 
 .PP 
-These options only apply when you invoke ccache as "ccache-swig"\&. When
+These options only apply when you invoke ccache as \(dq\&ccache\-swig\(dq\&\&. When
 invoked as a compiler none of these options apply\&. In that case your
 normal compiler options apply and you should refer to your compilers
 documentation\&.
 .PP 
-.IP "\fB-h\fP"
+.IP "\fB\-h\fP"
 Print a options summary page
 .IP 
-.IP "\fB-s\fP"
+.IP "\fB\-s\fP"
 Print the current statistics summary for the cache\&. The
 statistics are stored spread across the subdirectories of the
-cache\&. Using "ccache-swig -s" adds up the statistics across all
+cache\&. Using \(dq\&ccache\-swig \-s\(dq\& adds up the statistics across all
 subdirectories and prints the totals\&.
 .IP 
-.IP "\fB-z\fP"
+.IP "\fB\-z\fP"
 Zero the cache statistics\&. 
 .IP 
-.IP "\fB-V\fP"
+.IP "\fB\-V\fP"
 Print the ccache version number
 .IP 
-.IP "\fB-c\fP"
-Clean the cache and re-calculate the cache file count and
-size totals\&. Normally the -c option should not be necessary as ccache
+.IP "\fB\-c\fP"
+Clean the cache and re\-calculate the cache file count and
+size totals\&. Normally the \-c option should not be necessary as ccache
 keeps the cache below the specified limits at runtime and keeps
 statistics up to date on each compile\&. This option is mostly useful
 if you manually modify the cache contents or believe that the cache
 size statistics may be inaccurate\&.
 .IP 
-.IP "\fB-C\fP"
+.IP "\fB\-C\fP"
 Clear the entire cache, removing all cached files\&.
 .IP 
-.IP "\fB-F <maxfiles>\fP"
+.IP "\fB\-F <maxfiles>\fP"
 This sets the maximum number of files allowed in
 the cache\&. The value is stored inside the cache directory and applies
 to all future compiles\&. Due to the way the value is stored the actual
 value used is always rounded down to the nearest multiple of 16\&.
 .IP 
-.IP "\fB-M <maxsize>\fP"
+.IP "\fB\-M <maxsize>\fP"
 This sets the maximum cache size\&. You can specify
 a value in gigabytes, megabytes or kilobytes by appending a G, M or K
 to the value\&. The default is gigabytes\&. The actual value stored is
@@ -90,40 +90,40 @@ rounded down to the nearest multiple of 16 kilobytes\&.
 
 .PP 
 There are two ways to use ccache\&. You can either prefix your compile
-commands with "ccache-swig" or you can create a symbolic link between
-ccache-swig and the names of your compilers\&. The first method is most
+commands with \(dq\&ccache\-swig\(dq\& or you can create a symbolic link between
+ccache\-swig and the names of your compilers\&. The first method is most
 convenient if you just want to try out ccache or wish to use it for
 some specific projects\&. The second method is most useful for when you
 wish to use ccache for all your compiles\&.
 .PP 
-To install for usage by the first method just copy ccache-swig to somewhere
+To install for usage by the first method just copy ccache\-swig to somewhere
 in your path\&. 
 .PP 
 To install for the second method do something like this:
 .nf 
 
-  cp ccache-swig /usr/local/bin/
-  ln -s /usr/local/bin/ccache-swig /usr/local/bin/gcc
-  ln -s /usr/local/bin/ccache-swig /usr/local/bin/g++
-  ln -s /usr/local/bin/ccache-swig /usr/local/bin/cc
-  ln -s /usr/local/bin/ccache-swig /usr/local/bin/swig
+  cp ccache\-swig /usr/local/bin/
+  ln \-s /usr/local/bin/ccache\-swig /usr/local/bin/gcc
+  ln \-s /usr/local/bin/ccache\-swig /usr/local/bin/g++
+  ln \-s /usr/local/bin/ccache\-swig /usr/local/bin/cc
+  ln \-s /usr/local/bin/ccache\-swig /usr/local/bin/swig
 
 .fi 
 This will work as long as /usr/local/bin comes before the path to gcc
 (which is usually in /usr/bin)\&. After installing you may wish to run
-"which gcc" to make sure that the correct link is being used\&.
+\(dq\&which gcc\(dq\& to make sure that the correct link is being used\&.
 .PP 
 Note! Do not use a hard link, use a symbolic link\&. A hardlink will
-cause "interesting" problems\&.
+cause \(dq\&interesting\(dq\& problems\&.
 .PP 
 .SH "EXTRA OPTIONS"
 
 .PP 
 When run as a compiler front end ccache usually just takes the same
 command line options as the compiler you are using\&. The only exception
-to this is the option \&'--ccache-skip\&'\&. That option can be used to tell
+to this is the option \(cq\&\-\-ccache\-skip\(cq\&\&. That option can be used to tell
 ccache that the next option is definitely not a input filename, and
-should be passed along to the compiler as-is\&. 
+should be passed along to the compiler as\-is\&. 
 .PP 
 The reason this can be important is that ccache does need to parse the
 command line and determine what is an input filename and what is a
@@ -131,7 +131,7 @@ compiler option, as it needs the input filename to determine the name
 of the resulting object file (among other things)\&. The heuristic
 ccache uses in this parse is that any string on the command line that
 exists as a file is treated as an input file name (usually a C
-file)\&. By using --ccache-skip you can force an option to not be
+file)\&. By using \-\-ccache\-skip you can force an option to not be
 treated as an input file name and instead be passed along to the
 compiler as a command line option\&.
 .PP 
@@ -139,12 +139,12 @@ compiler as a command line option\&.
 
 .PP 
 ccache uses a number of environment variables to control operation\&. In
-most cases you won\&'t need any of these as the defaults will be fine\&.
+most cases you won\(cq\&t need any of these as the defaults will be fine\&.
 .PP 
 .IP "\fBCCACHE_DIR\fP"
 the CCACHE_DIR environment variable specifies
 where ccache will keep its cached compiler output\&. The default is
-"$HOME/\&.ccache"\&.
+\(dq\&$HOME/\&.ccache\(dq\&\&.
 .IP 
 .IP "\fBCCACHE_TEMPDIR\fP"
 the CCACHE_TEMPDIR environment variable specifies
@@ -166,13 +166,13 @@ that it makes\&. This can useful for debugging unexpected problems\&.
 .IP "\fBCCACHE_PATH\fP"
 You can optionally set CCACHE_PATH to a colon
 separated path where ccache will look for the real compilers\&. If you
-don\&'t do this then ccache will look for the first executable matching
-the compiler name in the normal PATH that isn\&'t a symbolic link to
+don\(cq\&t do this then ccache will look for the first executable matching
+the compiler name in the normal PATH that isn\(cq\&t a symbolic link to
 ccache itself\&.
 .IP 
 .IP "\fBCCACHE_CC\fP"
 You can optionally set CCACHE_CC to force the name
-of the compiler to use\&. If you don\&'t do this then ccache works it out
+of the compiler to use\&. If you don\(cq\&t do this then ccache works it out
 from the command line\&.
 .IP 
 .IP "\fBCCACHE_PREFIX\fP"
@@ -189,14 +189,14 @@ bypassing the cache completely\&.
 the CCACHE_READONLY environment variable
 tells ccache to attempt to use existing cached object files, but not
 to try to add anything new to the cache\&. If you are using this because
-your CCACHE_DIR is read-only, then you may find that you also need to
+your CCACHE_DIR is read\-only, then you may find that you also need to
 set CCACHE_TEMPDIR as otherwise ccache will fail to create the
 temporary files\&.
 .IP 
 .IP "\fBCCACHE_CPP2\fP"
 If you set the environment variable CCACHE_CPP2
 then ccache will not use the optimisation of avoiding the 2nd call to
-the pre-processor by compiling the pre-processed output that was used
+the pre\-processor by compiling the pre\-processed output that was used
 for finding the hash in the case of a cache miss\&. This is primarily a
 debugging option, although it is possible that some unusual compilers
 will have problems with the intermediate filename extensions used in
@@ -224,7 +224,7 @@ If you set the environment variable
 CCACHE_HARDLINK then ccache will attempt to use hard links from the
 cache directory when creating the compiler output rather than using a
 file copy\&. Using hard links is faster, but can confuse programs like
-\&'make\&' that rely on modification times\&. Hard links are never made for
+\(cq\&make\(cq\& that rely on modification times\&. Hard links are never made for
 compressed cache files\&.
 .IP 
 .IP "\fBCCACHE_RECACHE\fP"
@@ -252,8 +252,8 @@ this option\&.
 .IP 
 .IP "\fBCCACHE_UNIFY\fP"
 If you set the environment variable CCACHE_UNIFY
-then ccache will use the C/C++ unifier when hashing the pre-processor
-output if -g is not used in the compile\&. The unifier is slower than a
+then ccache will use the C/C++ unifier when hashing the pre\-processor
+output if \-g is not used in the compile\&. The unifier is slower than a
 normal hash, so setting this environment variable loses a little bit
 of speed, but it means that ccache can take advantage of not
 recompiling when the changes to the source code consist of
@@ -265,37 +265,37 @@ compiler warning messages\&.
 .IP 
 .IP "\fBCCACHE_EXTENSION\fP"
 Normally ccache tries to automatically
-determine the extension to use for intermediate C pre-processor files
+determine the extension to use for intermediate C pre\-processor files
 based on the type of file being compiled\&. Unfortunately this sometimes
-doesn\&'t work, for example when using the aCC compiler on HP-UX\&. On
+doesn\(cq\&t work, for example when using the aCC compiler on HP\-UX\&. On
 systems like this you can use the CCACHE_EXTENSION option to override
-the default\&. On HP-UX set this environment variable to "i" if you use
+the default\&. On HP\-UX set this environment variable to \(dq\&i\(dq\& if you use
 the aCC compiler\&.
 .IP 
 .IP "\fBCCACHE_STRIPC\fP"
 If you set the environment variable 
-CCACHE_STRIPC then ccache will strip the -c option when invoking
+CCACHE_STRIPC then ccache will strip the \-c option when invoking
 the preprocessor\&. This option is primarily for the Sun Workshop
 C++ compiler as without this option an unwarranted warning is displayed:
-CC: Warning: "-E" redefines product from "object" to "source (stdout)"
-when -E and -c is used together\&.
+CC: Warning: \(dq\&\-E\(dq\& redefines product from \(dq\&object\(dq\& to \(dq\&source (stdout)\(dq\&
+when \-E and \-c is used together\&.
 .IP 
 .IP "\fBCCACHE_SWIG\fP"
 When using SWIG as the compiler and it does not
-have \&'swig\&' in the executable name, then the CCACHE_SWIG environment 
+have \(cq\&swig\(cq\& in the executable name, then the CCACHE_SWIG environment 
 variable needs to be set in order for ccache to work correctly with 
 SWIG\&. The use of CCACHE_CPP2 is also recommended for SWIG due to some
 preprocessor quirks, however, use of CCACHE_CPP2 can often be skipped
--- check your generated code with and without this option set\&. Known
+\-\- check your generated code with and without this option set\&. Known
 problems are using preprocessor directives within %inline blocks and
-the use of \&'#pragma SWIG\&'\&.
+the use of \(cq\&#pragma SWIG\(cq\&\&.
 .IP 
 .SH "CACHE SIZE MANAGEMENT"
 
 .PP 
 By default ccache has a one gigabyte limit on the cache size and no
 maximum number of files\&. You can set a different limit using the
-"ccache -M" and "ccache -F" options, which set the size and number of
+\(dq\&ccache \-M\(dq\& and \(dq\&ccache \-F\(dq\& options, which set the size and number of
 files limits\&.
 .PP 
 When these limits are reached ccache will reduce the cache to 20%
@@ -320,7 +320,7 @@ code a 2nd time and use the previously compiled output\&. You detect
 that it is the same code by forming a hash of:
 .PP 
 .IP o 
-the pre-processor output from running the compiler with -E
+the pre\-processor output from running the compiler with \-E
 .IP o 
 the command line options
 .IP o 
@@ -349,16 +349,16 @@ ccache avoids the compile completely where possible\&.
 .PP 
 To use distcc with ccache I recommend using the CCACHE_PREFIX
 option\&. You just need to set the environment variable CCACHE_PREFIX to
-\&'distcc\&' and ccache will prefix the command line used with the
-compiler with the command \&'distcc\&'\&. 
+\(cq\&distcc\(cq\& and ccache will prefix the command line used with the
+compiler with the command \(cq\&distcc\(cq\&\&. 
 .PP 
 .SH "SHARING A CACHE"
 
 .PP 
 A group of developers can increase the cache hit rate by sharing a
 cache directory\&.  The hard links however cause unwanted side effects,
-as all links to a cached file share the file\&'s modification timestamp\&.
-This results in false dependencies to be triggered by timestamp-based
+as all links to a cached file share the file\(cq\&s modification timestamp\&.
+This results in false dependencies to be triggered by timestamp\-based
 build systems whenever another user links to an existing
 file\&. Typically, users will see that their libraries and binaries are
 relinked without reason\&.  To share a cache without side effects, the
@@ -378,7 +378,7 @@ cache directory (and that you trust all users of the shared cache)\&.
 .IP o 
 Make sure that the setgid bit is set on all directories in the
 cache\&. This tells the filesystem to inherit group ownership for new
-directories\&. The command "chmod g+s `find $CCACHE_DIR -type d`" might
+directories\&. The command \(dq\&chmod g+s `find $CCACHE_DIR \-type d`\(dq\& might
 be useful for this\&.
 .IP o 
 Set \fBCCACHE_NOCOMPRESS\fP for all users, if there are users with
@@ -392,18 +392,18 @@ ccache was inspired by the compilercache shell script script written
 by Erik Thiele and I would like to thank him for an excellent piece of
 work\&. See 
 http://www\&.erikyyy\&.de/compilercache/
-for the Erik\&'s scripts\&.
-ccache-swig is a port of the original ccache with support added for use
+for the Erik\(cq\&s scripts\&.
+ccache\-swig is a port of the original ccache with support added for use
 with SWIG\&.
 .PP 
 I wrote ccache because I wanted to get a bit more speed out of a
 compiler cache and I wanted to remove some of the limitations of the
-shell-script version\&.
+shell\-script version\&.
 .PP 
 .SH "DIFFERENCES FROM COMPILERCACHE"
 
 .PP 
-The biggest differences between Erik\&'s compilercache script and ccache
+The biggest differences between Erik\(cq\&s compilercache script and ccache
 are:
 .IP o 
 ccache is written in C, which makes it a bit faster (calling out to
@@ -430,7 +430,7 @@ Thanks to the following people for their contributions to ccache
 .IP o 
 Erik Thiele for the original compilercache script
 .IP o 
-Luciano Rocha for the idea of compiling the pre-processor output
+Luciano Rocha for the idea of compiling the pre\-processor output
 to avoid a 2nd cpp pass
 .IP o 
 Paul Russell for many suggestions and the debian packaging
@@ -441,10 +441,10 @@ Paul Russell for many suggestions and the debian packaging
 .PP 
 ccache was written by Andrew Tridgell
 http://samba\&.org/~tridge/\&.
-ccache was adapted to create ccache-swig for use with SWIG by William Fulton\&.
+ccache was adapted to create ccache\-swig for use with SWIG by William Fulton\&.
 .PP 
 If you wish to report a problem or make a suggestion then please email
-the SWIG developers on the swig-devel mailing list, see
+the SWIG developers on the swig\-devel mailing list, see
 http://www\&.swig\&.org/mail\&.html
 .PP 
 ccache is released under the GNU General Public License version 2 or

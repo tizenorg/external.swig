@@ -1,13 +1,15 @@
 /* ----------------------------------------------------------------------------- 
- * See the LICENSE file for information on copyright, usage and redistribution
- * of SWIG, and the README file for authors - http://www.swig.org/release.html.
+ * This file is part of SWIG, which is licensed as a whole under version 3 
+ * (or any later version) of the GNU General Public License. Some additional
+ * terms also apply to certain portions of SWIG. The full details of the SWIG
+ * license and copyrights can be found in the LICENSE and COPYRIGHT files
+ * included with the SWIG source code as distributed by the SWIG developers
+ * and at http://www.swig.org/legal.html.
  *
  * s-exp.cxx
  *
  * A parse tree represented as Lisp s-expressions.
  * ----------------------------------------------------------------------------- */
-
-char cvsroot_s_exp_cxx[] = "$Id: s-exp.cxx 11133 2009-02-20 07:52:24Z wsfulton $";
 
 #include "swigmod.h"
 #include "dohint.h"
@@ -20,9 +22,21 @@ S-Exp Options (available with -sexp)\n\
 static File *out = 0;
 
 class Sexp:public Language {
-public:
   int indent_level;
-   Sexp():indent_level(0) {
+  DOHHash *print_circle_hash;
+  int print_circle_count;
+  int hanging_parens;
+  bool need_whitespace;
+  bool need_newline;
+
+public:
+  Sexp():
+    indent_level(0),
+    print_circle_hash(0),
+    print_circle_count(0),
+    hanging_parens(0),
+    need_whitespace(0),
+    need_newline(0) {
   }
   
   virtual ~ Sexp() {
@@ -46,12 +60,6 @@ public:
       }
     }
   }
-
-  DOHHash *print_circle_hash;
-  int print_circle_count;
-  int hanging_parens;
-  bool need_whitespace;
-  bool need_newline;
 
   /* Top of the parse tree */
   virtual int top(Node *n) {
@@ -77,7 +85,7 @@ public:
     Language::top(n);
     Printf(out, "\n");
     Printf(out, ";;; Lisp parse tree produced by SWIG\n");
-    print_circle_hash = DohNewHash();
+    print_circle_hash = NewHash();
     print_circle_count = 0;
     hanging_parens = 0;
     need_whitespace = 0;
@@ -306,7 +314,7 @@ public:
 	  close_paren();
 	} else {
 	  // What is it?
-	  Printf(out, "#<DOH %s %x>", ObjType(obj)->objname, obj);
+	  Printf(out, "#<DOH %s %p>", ObjType(obj)->objname, obj);
 	}
       }
     }

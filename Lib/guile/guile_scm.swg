@@ -1,7 +1,4 @@
 /* -----------------------------------------------------------------------------
- * See the LICENSE file for information on copyright, usage and redistribution
- * of SWIG, and the README file for authors - http://www.swig.org/release.html.
- *
  * guile_scm.swg
  *
  * This SWIG interface file is processed if the Guile module is run
@@ -13,7 +10,6 @@
 %runtime "swigrun.swg"       // Common C API type-checking code
 
 %runtime "guile_scm_run.swg"
-%include <ghinterface.i>
 %include <guile.i>
 
 %runtime %{
@@ -35,10 +31,6 @@
       else									\
             gswig_result = scm_append(scm_listify(gswig_result, scm_listify(object, SCM_UNDEFINED), SCM_UNDEFINED));		\
     }
-    /* used by Lib/exception.i */
-    #define gh_symbol2scm scm_str2symbol
-    /* useb by Lib/cdata.i */
-    #define gh_str2scm scm_mem2string
 
 %}
 

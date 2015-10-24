@@ -1,14 +1,16 @@
 /* -----------------------------------------------------------------------------
- * See the LICENSE file for information on copyright, usage and redistribution
- * of SWIG, and the README file for authors - http://www.swig.org/release.html.
+ * This file is part of SWIG, which is licensed as a whole under version 3 
+ * (or any later version) of the GNU General Public License. Some additional
+ * terms also apply to certain portions of SWIG. The full details of the SWIG
+ * license and copyrights can be found in the LICENSE and COPYRIGHT files
+ * included with the SWIG source code as distributed by the SWIG developers
+ * and at http://www.swig.org/legal.html.
  *
  * expr.c
  *
  * Integer arithmetic expression evaluator used to handle expressions
  * encountered during preprocessing.
  * ----------------------------------------------------------------------------- */
-
-char cvsroot_expr_c[] = "$Id: expr.c 10310 2008-03-17 00:36:35Z olly $";
 
 #include "swig.h"
 #include "preprocessor.h"
@@ -31,7 +33,7 @@ static exprval stack[256];	/* Parsing stack       */
 static int sp = 0;		/* Stack pointer       */
 static int prec[256];		/* Precedence rules    */
 static int expr_init = 0;	/* Initialization flag */
-static char *errmsg = 0;	/* Parsing error       */
+static const char *errmsg = 0;	/* Parsing error       */
 
 /* Initialize the precedence table for various operators.  Low values have higher precedence */
 static void init_precedence() {
@@ -294,16 +296,16 @@ int Preprocessor_expr(DOH *s, int *error) {
 	stack[sp++].op = EXPR_OP;
 	stack[sp].op = EXPR_TOP;
 	stack[sp].svalue = 0;
-      } else if ((token == SWIG_TOKEN_LPAREN)) {
+      } else if (token == SWIG_TOKEN_LPAREN) {
 	stack[sp++].op = EXPR_GROUP;
 	stack[sp].op = EXPR_TOP;
 	stack[sp].value = 0;
 	stack[sp].svalue = 0;
       } else if (token == SWIG_TOKEN_ENDLINE) {
-      } else if ((token == SWIG_TOKEN_STRING)) {
+      } else if (token == SWIG_TOKEN_STRING) {
 	stack[sp].svalue = NewString(Scanner_text(scan));
 	stack[sp].op = EXPR_VALUE;
-      } else if ((token == SWIG_TOKEN_ID)) {
+      } else if (token == SWIG_TOKEN_ID) {
 	stack[sp].value = 0;
 	stack[sp].svalue = 0;
 	stack[sp].op = EXPR_VALUE;
@@ -431,6 +433,6 @@ extra_rparen:
  * Return error message set by the evaluator (if any)
  * ----------------------------------------------------------------------------- */
 
-char *Preprocessor_expr_error() {
+const char *Preprocessor_expr_error() {
   return errmsg;
 }

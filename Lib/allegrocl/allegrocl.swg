@@ -16,6 +16,7 @@
                float, double, long double, char *, void *,
                enum SWIGTYPE    "(cl::setq ACL_ffresult $body)";
 %typemap(lout) void "$body";
+#ifdef __cplusplus
 %typemap(lout) SWIGTYPE[ANY], SWIGTYPE *,
                SWIGTYPE &       
 %{ (cl:let* ((address $body)
@@ -25,6 +26,12 @@
      (cl:setq ACL_ffresult new-inst)) %}
 
 %typemap(lout) SWIGTYPE         "(cl::let* ((address $body)\n         (new-inst (cl::make-instance '$lclass :foreign-address address)))\n    (cl::unless (cl::zerop address)\n      (excl:schedule-finalization new-inst #'$ldestructor))\n    (cl::setq ACL_ffresult new-inst))";
+#else
+%typemap(lout) SWIGTYPE[ANY], SWIGTYPE *, SWIGTYPE &, SWIGTYPE
+%{ (cl:let* ((address $body)
+	  (new-inst (cl:make-instance '$lclass :foreign-address address)))
+     (cl:setq ACL_ffresult new-inst)) %}
+#endif
 
 %typemap(lisptype) bool, const bool "cl:boolean";
 %typemap(lisptype) char, const char "cl:character";
@@ -203,21 +210,27 @@ SWIG_TYPECHECK_STRING_ARRAY      1140
 
 %typemap(in)        wchar_t "$1 = $input;";
 %typemap(lin,numinputs=1)       wchar_t "(cl::let (($out (cl:char-code $in)))\n  $body)";
-%typemap(lin,numinputs=1)       wchar_t* "(excl:with-native-string ($out $in
+%typemap(lin,numinputs=1)       wchar_t * "(excl:with-native-string ($out $in
 :external-format #+little-endian :fat-le #-little-endian :fat)\n
 $body)"
 
 %typemap(out)       wchar_t "$result = $1;";
 %typemap(lout)      wchar_t "(cl::setq ACL_ffresult (cl::code-char $body))";
-%typemap(lout)      wchar_t* "(cl::setq ACL_ffresult (excl:native-to-string $body
+%typemap(lout)      wchar_t * "(cl::setq ACL_ffresult (excl:native-to-string $body
 :external-format #+little-endian :fat-le #-little-endian :fat))";
 
 %typemap(ffitype)   wchar_t ":unsigned-short";
 %typemap(lisptype)  wchar_t "";
 %typemap(ctype)     wchar_t "wchar_t";
 %typemap(lispclass) wchar_t "cl:character";
-%typemap(lispclass) wchar_t* "cl:string";
+%typemap(lispclass) wchar_t * "cl:string";
 //////////////////////////////////////////////////////////////
+
+/* Array reference typemaps */
+%apply SWIGTYPE & { SWIGTYPE ((&)[ANY]) }
+
+/* const pointers */
+%apply SWIGTYPE * { SWIGTYPE *const }
 
 /* name conversion for overloaded operators. */
 #ifdef __cplusplus
@@ -289,8 +302,6 @@ $body)"
 #endif
 
 %insert("lisphead") %{
-;; $Id: allegrocl.swg 10885 2008-09-30 19:45:13Z mutandiz $
-
 (eval-when (:compile-toplevel :load-toplevel :execute)
 
   ;; avoid compiling ef-templates at runtime

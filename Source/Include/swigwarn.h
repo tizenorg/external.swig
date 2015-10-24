@@ -1,6 +1,10 @@
-/* ----------------------------------------------------------------------------- 
- * See the LICENSE file for information on copyright, usage and redistribution
- * of SWIG, and the README file for authors - http://www.swig.org/release.html.
+/* -----------------------------------------------------------------------------
+ * This file is part of SWIG, which is licensed as a whole under version 3
+ * (or any later version) of the GNU General Public License. Some additional
+ * terms also apply to certain portions of SWIG. The full details of the SWIG
+ * license and copyrights can be found in the LICENSE and COPYRIGHT files
+ * included with the SWIG source code as distributed by the SWIG developers
+ * and at http://www.swig.org/legal.html.
  *
  * swigwarn.h
  *
@@ -15,8 +19,6 @@
  * not always the case in SWIG interface files.  Do not change the
  * numbers in this file.
  * ----------------------------------------------------------------------------- */
-
-/* $Id: swigwarn.h 11459 2009-07-28 11:47:36Z vmiklos $ */
 
 #ifndef SWIGWARN_H_
 #define SWIGWARN_H_
@@ -58,6 +60,7 @@
 #define WARN_PP_INCLUDEALL_IMPORTALL  203
 #define WARN_PP_CPP_WARNING           204
 #define WARN_PP_CPP_ERROR             205
+#define WARN_PP_UNEXPECTED_TOKENS     206
 
 /* -- C/C++ Parser -- */
 
@@ -72,7 +75,7 @@
 #define WARN_PARSE_PRIVATE_INHERIT    309
 #define WARN_PARSE_TEMPLATE_REPEAT    310
 #define WARN_PARSE_TEMPLATE_PARTIAL   311
-#define WARN_PARSE_NESTED_CLASS       312
+#define WARN_PARSE_UNNAMED_NESTED_CLASS 312
 #define WARN_PARSE_UNDEFINED_EXTERN   313
 #define WARN_PARSE_KEYWORD            314
 #define WARN_PARSE_USING_UNDEF        315
@@ -84,6 +87,9 @@
 #define WARN_PARSE_BUILTIN_NAME       321
 #define WARN_PARSE_REDUNDANT          322
 #define WARN_PARSE_REC_INHERITANCE    323
+#define WARN_PARSE_NESTED_TEMPLATE    324
+#define WARN_PARSE_NAMED_NESTED_CLASS 325
+#define WARN_PARSE_EXTEND_NAME        326
 
 #define WARN_IGNORE_OPERATOR_NEW        350	/* new */
 #define WARN_IGNORE_OPERATOR_DELETE     351	/* delete */
@@ -189,13 +195,39 @@
 #define WARN_LANG_DIRECTOR_ABSTRACT   517
 #define WARN_LANG_PORTABILITY_FILENAME 518
 #define WARN_LANG_TEMPLATE_METHOD_IGNORE 519
+#define WARN_LANG_SMARTPTR_MISSING    520
+#define WARN_LANG_ILLEGAL_DESTRUCTOR  521
+#define WARN_LANG_EXTEND_CONSTRUCTOR  522
+#define WARN_LANG_EXTEND_DESTRUCTOR   523
 
 /* -- Reserved (600-799) -- */
 
-/* -- Language module specific warnings (800 - 999) -- */
+/* -- Language module specific warnings (700 - 899) -- */
+
+/* Feel free to claim any number in this space that's not currently being used. Just make sure you
+   add an entry here */
+
+#define WARN_D_TYPEMAP_CTYPE_UNDEF           700
+#define WARN_D_TYPEMAP_IMTYPE_UNDEF           701
+#define WARN_D_TYPEMAP_DTYPE_UNDEF           702
+#define WARN_D_MULTIPLE_INHERITANCE           703
+#define WARN_D_TYPEMAP_CLASSMOD_UNDEF         704
+#define WARN_D_TYPEMAP_DBODY_UNDEF            705
+#define WARN_D_TYPEMAP_DOUT_UNDEF             706
+#define WARN_D_TYPEMAP_DIN_UNDEF              707
+#define WARN_D_TYPEMAP_DDIRECTORIN_UNDEF      708
+#define WARN_D_TYPEMAP_DCONSTRUCTOR_UNDEF     709
+#define WARN_D_EXCODE_MISSING                 710
+#define WARN_D_CANTHROW_MISSING               711
+#define WARN_D_NO_DIRECTORCONNECT_ATTR        712
+#define WARN_D_NAME_COLLISION                 713
+
+/* please leave 700-719 free for D */
 
 #define WARN_RUBY_WRONG_NAME                  801
 #define WARN_RUBY_MULTIPLE_INHERITANCE        802
+
+/* please leave 800-809 free for Ruby */
 
 #define WARN_JAVA_TYPEMAP_JNI_UNDEF           810
 #define WARN_JAVA_TYPEMAP_JTYPE_UNDEF         811
@@ -212,6 +244,7 @@
 #define WARN_JAVA_TYPEMAP_JAVACONSTRUCT_UNDEF 823
 #define WARN_JAVA_TYPEMAP_DIRECTORIN_NODESC   824
 #define WARN_JAVA_NO_DIRECTORCONNECT_ATTR     825
+#define WARN_JAVA_NSPACE_WITHOUT_PACKAGE      826
 
 /* please leave 810-829 free for Java */
 
@@ -254,8 +287,10 @@
 
 /* please leave 870-889 free for PHP */
 
+#define WARN_GO_NAME_CONFLICT                 890
 
-/* Feel free to claim any number in this space that's not currently being used. Just make sure you
-   add an entry here */
+/* please leave 890-899 free for Go */
+
+/* -- User defined warnings (900 - 999) -- */
 
 #endif

@@ -1,7 +1,4 @@
 /* -----------------------------------------------------------------------------
- * See the LICENSE file for information on copyright, usage and redistribution
- * of SWIG, and the README file for authors - http://www.swig.org/release.html.
- *
  * std_vector.i
  *
  * SWIG typemaps for std::vector types
@@ -183,6 +180,9 @@ namespace std {
             }
         }
       public:
+        typedef size_t size_type;
+        typedef T value_type;
+        typedef const value_type& const_reference;
         vector(unsigned int size = 0);
         vector(unsigned int size, const T& value);
         vector(const vector<T> &);
@@ -352,6 +352,9 @@ namespace std {
             }
         }
       public:
+        typedef size_t size_type;
+        typedef T value_type;
+        typedef const value_type& const_reference;
         vector(unsigned int size = 0);
         vector(unsigned int size, T *value);
         vector(const vector<T *> &);
@@ -520,6 +523,9 @@ namespace std {
             }
         }
       public:
+        typedef size_t size_type;
+        typedef T value_type;
+        typedef const value_type& const_reference;
         vector(unsigned int size = 0);
         vector(unsigned int size, T value);
         vector(const vector<T> &);

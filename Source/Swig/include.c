@@ -1,6 +1,10 @@
 /* ----------------------------------------------------------------------------- 
- * See the LICENSE file for information on copyright, usage and redistribution
- * of SWIG, and the README file for authors - http://www.swig.org/release.html.
+ * This file is part of SWIG, which is licensed as a whole under version 3 
+ * (or any later version) of the GNU General Public License. Some additional
+ * terms also apply to certain portions of SWIG. The full details of the SWIG
+ * license and copyrights can be found in the LICENSE and COPYRIGHT files
+ * included with the SWIG source code as distributed by the SWIG developers
+ * and at http://www.swig.org/legal.html.
  *
  * include.c
  *
@@ -9,14 +13,13 @@
  * are provided.
  * ----------------------------------------------------------------------------- */
 
-char cvsroot_include_c[] = "$Id: include.c 11080 2009-01-24 13:15:51Z bhy $";
-
 #include "swig.h"
 
 static List   *directories = 0;	        /* List of include directories */
 static String *lastpath = 0;	        /* Last file that was included */
 static List   *pdirectories = 0;        /* List of pushed directories  */
 static int     dopush = 1;		/* Whether to push directories */
+static int file_debug = 0;
 
 /* This functions determine whether to push/pop dirs in the preprocessor */
 void Swig_set_push_dir(int push) {
@@ -160,7 +163,8 @@ static FILE *Swig_open_file(const_String_or_char_ptr name, int sysfile, int use_
   String *filename;
   List *spath = 0;
   char *cname;
-  int i, ilen;
+  int i, ilen, nbytes;
+  char bom[3];
 
   if (!directories)
     directories = NewList();
@@ -169,6 +173,9 @@ static FILE *Swig_open_file(const_String_or_char_ptr name, int sysfile, int use_
   cname = Char(name);
   filename = NewString(cname);
   assert(filename);
+  if (file_debug) {
+    Printf(stdout, "  Open: %s\n", filename);
+  }
   f = fopen(Char(filename), "r");
   if (!f && use_include_path) {
     spath = Swig_search_path_any(sysfile);
@@ -184,9 +191,16 @@ static FILE *Swig_open_file(const_String_or_char_ptr name, int sysfile, int use_
   }
   if (f) {
     Delete(lastpath);
-    lastpath = Swig_filename_escape(filename);
+    lastpath = filename;
+
+    /* Skip the UTF-8 BOM if it's present */
+    nbytes = fread(bom, 1, 3, f);
+    if (nbytes == 3 && bom[0] == (char)0xEF && bom[1] == (char)0xBB && bom[2] == (char)0xBF) {
+      /* skip */
+    } else {
+      fseek(f, 0, SEEK_SET);
+    }
   }
-  Delete(filename);
   return f;
 }
 
@@ -218,6 +232,8 @@ String *Swig_read_file(FILE *f) {
     Append(str, buffer);
   }
   len = Len(str);
+  /* Add a newline if not present on last line -- the preprocessor seems to 
+   * rely on \n and not EOF terminating lines */
   if (len) {
     char *cstr = Char(str);
     if (cstr[len - 1] != '\n') {
@@ -244,7 +260,7 @@ static String *Swig_include_any(const_String_or_char_ptr name, int sysfile) {
   str = Swig_read_file(f);
   fclose(f);
   Seek(str, 0, SEEK_SET);
-  file = Copy(lastpath);
+  file = Copy(Swig_last_file());
   Setfile(str, file);
   Delete(file);
   Setline(str, 1);
@@ -308,58 +324,41 @@ File *Swig_filebyname(const_String_or_char_ptr filename) {
 }
 
 /* -----------------------------------------------------------------------------
- * Swig_file_suffix()
+ * Swig_file_extension()
  *
- * Returns the suffix of a file
+ * Returns the extension of a file
  * ----------------------------------------------------------------------------- */
 
-char *Swig_file_suffix(const_String_or_char_ptr filename) {
-  char *d;
-  char *c = Char(filename);
-  int len = Len(filename);
-  if (strlen(c)) {
-    d = c + len - 1;
-    while (d != c) {
-      if (*d == '.')
-	return d;
-      d--;
-    }
-    return c + len;
-  }
-  return c;
+String *Swig_file_extension(const_String_or_char_ptr filename) {
+  String *name = Swig_file_filename(filename);
+  const char *c = strrchr(Char(name), '.');
+  String *extension = c ? NewString(c) : NewString("");
+  Delete(name);
+  return extension;
 }
 
 /* -----------------------------------------------------------------------------
  * Swig_file_basename()
  *
- * Returns the filename with no suffix attached.
+ * Returns the filename with the extension removed.
  * ----------------------------------------------------------------------------- */
 
-char *Swig_file_basename(const_String_or_char_ptr filename) {
-  static char tmp[1024];
-  char *c;
-  strcpy(tmp, Char(filename));
-  c = Swig_file_suffix(tmp);
-  *c = 0;
-  return tmp;
+String *Swig_file_basename(const_String_or_char_ptr filename) {
+  String *extension = Swig_file_extension(filename);
+  String *basename = NewStringWithSize(filename, Len(filename) - Len(extension));
+  Delete(extension);
+  return basename;
 }
 
 /* -----------------------------------------------------------------------------
  * Swig_file_filename()
  *
- * Return the file with any leading path stripped off
+ * Return the file name with any leading path stripped off
  * ----------------------------------------------------------------------------- */
-char *Swig_file_filename(const_String_or_char_ptr filename) {
-  static char tmp[1024];
+String *Swig_file_filename(const_String_or_char_ptr filename) {
   const char *delim = SWIG_FILE_DELIMITER;
-  char *c;
-
-  strcpy(tmp, Char(filename));
-  c = strrchr(tmp, *delim);
-  if (c)
-    return c + 1;
-  else
-    return tmp;
+  const char *c = strrchr(Char(filename), *delim);
+  return c ? NewString(c + 1) : NewString(filename);
 }
 
 /* -----------------------------------------------------------------------------
@@ -367,17 +366,15 @@ char *Swig_file_filename(const_String_or_char_ptr filename) {
  *
  * Return the name of the directory associated with a file
  * ----------------------------------------------------------------------------- */
-char *Swig_file_dirname(const_String_or_char_ptr filename) {
-  static char tmp[1024];
+String *Swig_file_dirname(const_String_or_char_ptr filename) {
   const char *delim = SWIG_FILE_DELIMITER;
-  char *c;
-  strcpy(tmp, Char(filename));
-  if (!strstr(tmp, delim)) {
-    return "";
-  }
-  c = tmp + strlen(tmp) - 1;
-  while (*c != *delim)
-    c--;
-  *(++c) = 0;
-  return tmp;
+  const char *c = strrchr(Char(filename), *delim);
+  return c ? NewStringWithSize(filename, c - Char(filename) + 1) : NewString("");
+}
+
+/*
+ * Swig_file_debug()
+ */
+void Swig_file_debug_set() {
+  file_debug = 1;
 }

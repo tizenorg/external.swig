@@ -1,65 +1,130 @@
-Name:       swig
-Summary:    Connects C/C++/Objective C to some high-level programming languages
-Version:    1.3.40
-Release:    1
-Group:      Development/Tools
-License:    BSD
-URL:        http://swig.sourceforge.net
-Source0:    %{name}-%{version}.tar.gz
-Source1:    swig-rpmlintrc
-Patch0:     swig-1.3.23-pylib.patch
+Name:           swig
+Version:        2.0.12
+Release:        0
+License:        GPL-3.0+ and BSD-3-Clause
+Summary:        Simplified Wrapper and Interface Generator
+Url:            http://www.swig.org/
+Group:          Development/Languages/C and C++
+Source:         http://sourceforge.net/projects/swig/files/swig/%{name}-%{version}/%{name}-%{version}.tar.gz
+Source1:        %{name}.rpmlintrc
+Source1001: 	swig.manifest
+BuildRequires:  autoconf
+BuildRequires:  automake
+BuildRequires:  boost-devel
+%define docpath %{_docdir}/%{name}
+BuildRequires:  fdupes
+BuildRequires:  gcc-c++
+BuildRequires:  libtool
+BuildRequires:  pkgconfig(libpcre)
 BuildRequires:  perl
+BuildRequires:  pkg-config
 BuildRequires:  python-devel
+BuildRequires:  bison
 
 %description
-SWIG is a software development tool that connects programs written in C
-and C++ with a variety of high-level programming languages. SWIG is 
-primarily used with common scripting languages such as Perl, PHP, Python,
-Tcl/Tk, and Ruby, however the list of supported languages also includes
-non-scripting languages such as C#, Common Lisp (CLISP, Allegro CL, UFFI),
-Java, Modula-3, OCAML, Octave, and R. Also several interpreted and compiled
-Scheme implementations (Guile, MzScheme, Chicken) are supported. SWIG is 
-most commonly used to create high-level interpreted or compiled programming 
-environments, user interfaces, and as a tool for testing and prototyping C/C++
-software. SWIG can also export its parse tree in the form of XML and Lisp
-s-expressions.
-
-
+SWIG is a compiler that attempts to make it easy to integrate C, C++,
+or Objective-C code with scripting languages including Perl, Tcl, and
+Python.  In a nutshell, you give it a bunch of ANSI C/C++ declarations
+and it generates an interface between C and your favorite scripting
+language.  However, this is only scratching the surface of what SWIG
+can do--some of its more advanced features include automatic
+documentation generation, module and library management, extensive
+customization options, and more.
 
 %package doc
-Summary:    Documentation files for %{name}
-Group:      Documentation
-Requires:   %{name} = %{version}-%{release}
+License:        BSD-3-Clause
+Summary:        SWIG Manual
+Group:          Documentation/Man
+Requires:       swig
+BuildArch:      noarch
 
 %description doc
-Description: %{summary}
+SWIG is a compiler that attempts to make it easy to integrate C, C++,
+or Objective-C code with scripting languages including Perl, Tcl, and
+Python.  In a nutshell, you give it a bunch of ANSI C/C++ declarations
+and it generates an interface between C and your favorite scripting
+language.  However, this is only scratching the surface of what SWIG
+can do--some of its more advanced features include automatic
+documentation generation, module and library management, extensive
+customization options, and more.
 
+This package contains the SWIG manual.
+
+%package examples
+License:        BSD-3-Clause
+Summary:        SWIG example files
+Group:          Documentation/Howto
+Requires:       swig
+
+%description examples
+SWIG is a compiler that attempts to make it easy to integrate C, C++,
+or Objective-C code with scripting languages including Perl, Tcl, and
+Python.  In a nutshell, you give it a bunch of ANSI C/C++ declarations
+and it generates an interface between C and your favorite scripting
+language.  However, this is only scratching the surface of what SWIG
+can do--some of its more advanced features include automatic
+documentation generation, module and library management, extensive
+customization options, and more.
+
+This package contains SWIG examples, useful both for testing and
+understandig SWIG usage.
 
 %prep
-%setup -q -n %{name}-%{version}
-
-%patch0 -p1
+%setup -q
+cp %{SOURCE1001} .
 
 %build
-%configure --disable-static
-make %{?jobs:-j%jobs}
+sh autogen.sh
+%configure --disable-ccache --without-ruby
+make %{?_smp_mflags}
+
+#%check
+# Segfaults
+#rm -f Examples/test-suite/python/li_std_containers_int_runme.py
+#rm -f Examples/test-suite/python/li_boost_shared_ptr_runme.py
+#make check
 
 %install
-rm -rf %{buildroot}
 %make_install
-mkdir -p %{buildroot}/usr/share/license
-cp LICENSE %{buildroot}/usr/share/license/%{name}
+
+install -d %{buildroot}%{docpath}
+cp -a TODO ANNOUNCE CHANGES* LICENSE README Doc/{Devel,Manual} \
+	%{buildroot}%{docpath}
+install -d %{buildroot}%{_libdir}/swig
+cp -a Examples %{buildroot}%{_libdir}/swig/examples
+rm -rf %{buildroot}%{_libdir}/swig/examples/test-suite
+
+# rm files that are not needed for running or rebuilding the examples
+find %{buildroot}%{_libdir}/swig \
+	-name '*.dsp' -o -name '*.vcproj' -o -name '*.sln' -o \
+	-name '*.o' -o -name '*_wrap.c' | xargs rm
+
+# fix perms
+chmod -x %{buildroot}%{docpath}/Manual/*
+find %{buildroot}%{_libdir}/swig -name '*.h' -perm +111 | \
+	xargs --no-run-if-empty chmod -x
+ln -s %{_libdir}/swig/examples %{buildroot}%{docpath}/Examples
+
+%fdupes %{buildroot}
 
 %files
-%defattr(-,root,root,-)
-%doc LICENSE
-%{_bindir}/*
+%manifest %{name}.manifest
+%defattr(644,root,root,755)
+%dir %{docpath}
+%{docpath}/[A-Z][A-Z]*
 %{_datadir}/swig
-/usr/share/man/man1/ccache-swig.1.gz
-/usr/share/license/%{name}
-
+%attr(755,root,root) %{_bindir}/swig
 
 %files doc
-%defattr(-,root,root,-)
-%doc ANNOUNCE CHANGES FUTURE INSTALL NEW README TODO
-%doc Doc/*
+%manifest %{name}.manifest
+%defattr(-,root,root)
+%{docpath}/Devel
+%{docpath}/Manual
+
+%files examples
+%manifest %{name}.manifest
+%defattr(-,root,root)
+%{docpath}/Examples
+%{_libdir}/swig
+
+%changelog

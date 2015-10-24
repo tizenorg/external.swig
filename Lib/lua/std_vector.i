@@ -1,7 +1,4 @@
 /* -----------------------------------------------------------------------------
- * See the LICENSE file for information on copyright, usage and redistribution
- * of SWIG, and the README file for authors - http://www.swig.org/release.html.
- *
  * std_vector.i
  *
  * std::vector typemaps for LUA
@@ -10,7 +7,7 @@
 %{
 #include <vector>
 %}
-%include <std_except.i> // the general exepctions
+%include <std_except.i> // the general exceptions
 /*
 A really cut down version of the vector class.
 

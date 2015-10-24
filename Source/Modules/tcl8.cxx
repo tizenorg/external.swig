@@ -1,13 +1,15 @@
 /* -----------------------------------------------------------------------------
- * See the LICENSE file for information on copyright, usage and redistribution
- * of SWIG, and the README file for authors - http://www.swig.org/release.html.
+ * This file is part of SWIG, which is licensed as a whole under version 3 
+ * (or any later version) of the GNU General Public License. Some additional
+ * terms also apply to certain portions of SWIG. The full details of the SWIG
+ * license and copyrights can be found in the LICENSE and COPYRIGHT files
+ * included with the SWIG source code as distributed by the SWIG developers
+ * and at http://www.swig.org/legal.html.
  *
  * tcl8.cxx
  *
  * Tcl8 language module for SWIG.
  * ----------------------------------------------------------------------------- */
-
-char cvsroot_tcl8_cxx[] = "$Id: tcl8.cxx 11518 2009-08-08 22:56:10Z wsfulton $";
 
 #include "swigmod.h"
 #include "cparse.h"
@@ -28,7 +30,7 @@ static String *methods_tab = 0;	/* Methods table             */
 static String *attr_tab = 0;	/* Attribute table           */
 static String *prefix = 0;
 static String *module = 0;
-static int nspace = 0;
+static int namespace_option = 0;
 static String *init_name = 0;
 static String *ns_name = 0;
 static int have_constructor;
@@ -97,7 +99,7 @@ public:
 	    i++;
 	  }
 	} else if (strcmp(argv[i], "-namespace") == 0) {
-	  nspace = 1;
+	  namespace_option = 1;
 	  Swig_mark_arg(i);
 	} else if (strcmp(argv[i], "-itcl") == 0) {
 	  itcl = 1;
@@ -181,7 +183,7 @@ public:
     /* If shadow classing is enabled, we're going to change the module name to "_module" */
     if (itcl) {
       String *filen;
-      filen = NewStringf("%s%s.itcl", Swig_file_dirname(outfile), module);
+      filen = NewStringf("%s%s.itcl", SWIG_output_directory(), module);
 
       Insert(module, 0, "_");
 
@@ -204,7 +206,7 @@ public:
 
     Printf(f_header, "#define SWIG_init    %s\n", init_name);
     Printf(f_header, "#define SWIG_name    \"%s\"\n", module);
-    if (nspace) {
+    if (namespace_option) {
       Printf(f_header, "#define SWIG_prefix  \"%s::\"\n", ns_name);
       Printf(f_header, "#define SWIG_namespace \"%s\"\n\n", ns_name);
     } else {
@@ -244,7 +246,6 @@ public:
 
     if (itcl) {
       Printv(f_shadow, f_shadow_stubs, "\n", NIL);
-      Close(f_shadow);
       Delete(f_shadow);
     }
 
@@ -255,7 +256,6 @@ public:
     Delete(f_header);
     Delete(f_wrappers);
     Delete(f_init);
-    Close(f_begin);
     Delete(f_runtime);
     Delete(f_begin);
     return SWIG_OK;
@@ -456,8 +456,8 @@ public:
     /* Need to redo all of this code (eventually) */
 
     /* Return value if necessary  */
-    if ((tm = Swig_typemap_lookup_out("out", n, "result", f, actioncode))) {
-      Replaceall(tm, "$source", "result");
+    if ((tm = Swig_typemap_lookup_out("out", n, Swig_cresult_name(), f, actioncode))) {
+      Replaceall(tm, "$source", Swig_cresult_name());
 #ifdef SWIG_USE_RESULTOBJ
       Replaceall(tm, "$target", "resultobj");
       Replaceall(tm, "$result", "resultobj");
@@ -484,14 +484,14 @@ public:
 
     /* Look for any remaining cleanup */
     if (GetFlag(n, "feature:new")) {
-      if ((tm = Swig_typemap_lookup("newfree", n, "result", 0))) {
-	Replaceall(tm, "$source", "result");
+      if ((tm = Swig_typemap_lookup("newfree", n, Swig_cresult_name(), 0))) {
+	Replaceall(tm, "$source", Swig_cresult_name());
 	Printf(f->code, "%s\n", tm);
       }
     }
 
-    if ((tm = Swig_typemap_lookup("ret", n, "result", 0))) {
-      Replaceall(tm, "$source", "result");
+    if ((tm = Swig_typemap_lookup("ret", n, Swig_cresult_name(), 0))) {
+      Replaceall(tm, "$source", Swig_cresult_name());
       Printf(f->code, "%s\n", tm);
     }
 #ifdef SWIG_USE_RESULTOBJ
@@ -527,7 +527,19 @@ public:
 	Printf(df->code, "Tcl_Obj *CONST *argv = objv+1;\n");
 	Printf(df->code, "int argc = objc-1;\n");
 	Printv(df->code, dispatch, "\n", NIL);
-	Printf(df->code, "Tcl_SetResult(interp,(char *) \"No matching function for overloaded '%s'\", TCL_STATIC);\n", iname);
+	Node *sibl = n;
+	while (Getattr(sibl, "sym:previousSibling"))
+	  sibl = Getattr(sibl, "sym:previousSibling");	// go all the way up
+	String *protoTypes = NewString("");
+	do {
+	  String *fulldecl = Swig_name_decl(sibl);
+	  Printf(protoTypes, "\n\"    %s\\n\"", fulldecl);
+	  Delete(fulldecl);
+	} while ((sibl = Getattr(sibl, "sym:nextSibling")));
+	Printf(df->code, "Tcl_SetResult(interp,(char *) "
+	       "\"Wrong number or type of arguments for overloaded function '%s'.\\n\""
+	       "\n\"  Possible C/C++ prototypes are:\\n\"%s, TCL_STATIC);\n", iname, protoTypes);
+	Delete(protoTypes);
 	Printf(df->code, "return TCL_ERROR;\n");
 	Printv(df->code, "}\n", NIL);
 	Wrapper_print(df, f_wrappers);
@@ -569,7 +581,7 @@ public:
     /* Create a function for getting a variable */
     int addfail = 0;
     getf = NewWrapper();
-    String *getname = Swig_name_get(iname);
+    String *getname = Swig_name_get(NSPACE_TODO, iname);
     String *getfname = Swig_name_wrapper(getname);
     Setattr(n, "wrap:name", getfname);
     Printv(getf->def, "SWIGINTERN const char *", getfname, "(ClientData clientData SWIGUNUSED, Tcl_Interp *interp, char *name1, char *name2, int flags) {", NIL);
@@ -601,7 +613,7 @@ public:
     /* Try to create a function setting a variable */
     if (is_assignable(n)) {
       setf = NewWrapper();
-      setname = Swig_name_set(iname);
+      setname = Swig_name_set(NSPACE_TODO, iname);
       setfname = Swig_name_wrapper(setname);
       Setattr(n, "wrap:name", setfname);
       if (setf) {
@@ -666,7 +678,7 @@ public:
   virtual int constantWrapper(Node *n) {
     String *name = Getattr(n, "name");
     String *iname = Getattr(n, "sym:name");
-    String *nsname = !nspace ? Copy(iname) : NewStringf("%s::%s", ns_name, iname);
+    String *nsname = !namespace_option ? Copy(iname) : NewStringf("%s::%s", ns_name, iname);
     SwigType *type = Getattr(n, "type");
     String *rawval = Getattr(n, "rawval");
     String *value = rawval ? rawval : Getattr(n, "value");
@@ -674,7 +686,7 @@ public:
 
     if (!addSymbol(iname, n))
       return SWIG_ERROR;
-    if (nspace)
+    if (namespace_option)
       Setattr(n, "sym:name", nsname);
 
     /* Special hook for member pointer */
@@ -732,6 +744,7 @@ public:
     have_constructor = 0;
     have_destructor = 0;
     destructor_action = 0;
+    constructor_name = 0;
 
     if (itcl) {
       constructor = NewString("");
@@ -779,10 +792,7 @@ public:
     String *wrap_class = NewStringf("&_wrap_class_%s", mangled_classname);
     SwigType_remember_clientdata(t, wrap_class);
 
-    //    t = Copy(Getattr(n,"classtype"));
-    //    SwigType_add_pointer(t);
-
-    String *rt = Copy(Getattr(n, "classtype"));
+    String *rt = Copy(getClassType());
     SwigType_add_pointer(rt);
 
     // Register the class structure with the type checker
@@ -865,7 +875,7 @@ public:
 	Printv(ptrclass, attributes, NIL);
 
 	// base class swig_getset was being called for complex inheritance trees
-	if (nspace) {
+	if (namespace_option) {
 
 	  Printv(ptrclass, "  protected method ", class_name, "_swig_getset {var name1 name2 op} {\n", NIL);
 
@@ -931,7 +941,7 @@ public:
 	Printv(f_shadow, "  constructor { } {\n", NIL);
 	Printv(f_shadow, "    # This constructor will fail if called directly\n", NIL);
 	Printv(f_shadow, "    if { [info class] == \"::", class_name, "\" } {\n", NIL);
-	Printv(f_shadow, "      error \"No constructor for class ", class_name, (Getattr(n, "abstract") ? " - class is abstract" : ""), "\"\n", NIL);
+	Printv(f_shadow, "      error \"No constructor for class ", class_name, (Getattr(n, "abstracts") ? " - class is abstract" : ""), "\"\n", NIL);
 	Printv(f_shadow, "    }\n", NIL);
 	Printv(f_shadow, "  }\n", NIL);
       }
@@ -947,7 +957,7 @@ public:
     Printv(f_wrappers, "static swig_class _wrap_class_", mangled_classname, " = { \"", class_name, "\", &SWIGTYPE", SwigType_manglestr(t), ",", NIL);
 
     if (have_constructor) {
-      Printf(f_wrappers, "%s", Swig_name_wrapper(Swig_name_construct(constructor_name)));
+      Printf(f_wrappers, "%s", Swig_name_wrapper(Swig_name_construct(NSPACE_TODO, constructor_name)));
       Delete(constructor_name);
       constructor_name = 0;
     } else {
@@ -985,7 +995,7 @@ public:
     Language::memberfunctionHandler(n);
 
     realname = iname ? iname : name;
-    rname = Swig_name_wrapper(Swig_name_member(class_name, realname));
+    rname = Swig_name_wrapper(Swig_name_member(NSPACE_TODO, class_name, realname));
     if (!Getattr(n, "sym:nextSibling")) {
       Printv(methods_tab, tab4, "{\"", realname, "\", ", rname, "}, \n", NIL);
     }
@@ -1018,7 +1028,7 @@ public:
 
 	  if (Len(dv) > 0) {
 	    String *defval = NewString(dv);
-	    if (nspace) {
+	    if (namespace_option) {
 	      Insert(defval, 0, "::");
 	      Insert(defval, 0, ns_name);
 	    }
@@ -1036,7 +1046,7 @@ public:
       }
       Printv(imethods, "] ", NIL);
 
-      if (nspace) {
+      if (namespace_option) {
 	Printv(imethods, "{ ", ns_name, "::", class_name, "_", realname, " $swigobj", NIL);
       } else {
 	Printv(imethods, "{ ", class_name, "_", realname, " $swigobj", NIL);
@@ -1078,11 +1088,11 @@ public:
 
     Language::membervariableHandler(n);
     Printv(attr_tab, tab4, "{ \"-", symname, "\",", NIL);
-    rname = Swig_name_wrapper(Swig_name_get(Swig_name_member(class_name, symname)));
+    rname = Swig_name_wrapper(Swig_name_get(NSPACE_TODO, Swig_name_member(NSPACE_TODO, class_name, symname)));
     Printv(attr_tab, rname, ", ", NIL);
     Delete(rname);
     if (!GetFlag(n, "feature:immutable")) {
-      rname = Swig_name_wrapper(Swig_name_set(Swig_name_member(class_name, symname)));
+      rname = Swig_name_wrapper(Swig_name_set(NSPACE_TODO, Swig_name_member(NSPACE_TODO, class_name, symname)));
       Printv(attr_tab, rname, "},\n", NIL);
       Delete(rname);
     } else {
@@ -1164,7 +1174,7 @@ public:
 	// Call to constructor wrapper and parent Ptr class
 	// [BRE] add -namespace/-prefix support
 
-	if (nspace) {
+	if (namespace_option) {
 	  Printv(constructor, "      ", realname, "Ptr::constructor [", ns_name, "::new_", realname, NIL);
 	} else {
 	  Printv(constructor, "      ", realname, "Ptr::constructor [new_", realname, NIL);
@@ -1193,7 +1203,8 @@ public:
       }
     }
 
-    constructor_name = NewString(Getattr(n, "sym:name"));
+    if (!have_constructor)
+      constructor_name = NewString(Getattr(n, "sym:name"));
     have_constructor = 1;
     return SWIG_OK;
   }
@@ -1231,7 +1242,7 @@ public:
     if (!temp)
       temp = NewString("");
     Clear(temp);
-    if (nspace) {
+    if (namespace_option) {
       Printf(temp, "%s::%s ", ns_name, iname);
     } else {
       Printf(temp, "%s ", iname);

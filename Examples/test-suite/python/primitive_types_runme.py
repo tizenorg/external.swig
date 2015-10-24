@@ -188,14 +188,6 @@ if t.var_namet != 'hol':
   raise RuntimeError
 
 
-if t.strlen('hile') != 4:
-  print t.strlen('hile')
-  raise RuntimeError, "bad string typemap"
-
-if t.strlen('hil\0') != 4:
-  raise RuntimeError, "bad string typemap"
-
-
 cvar.var_char = '\0'
 if cvar.var_char != '\0':
   raise RuntimeError, "bad char '0' case"
@@ -244,9 +236,6 @@ pchar_setitem(pc, 3, 'a')
 pchar_setitem(pc, 4, 0)
 
 
-if t.strlen(pc) != 4:
-  raise RuntimeError, "bad string typemap"
-
 cvar.var_pchar = pc
 if cvar.var_pchar != "hola":
   print cvar.var_pchar
@@ -286,9 +275,21 @@ try:
 except TypeError:
   if a != t.var_char:
     error = 1
-  pass 
+  pass
 if error:
   raise RuntimeError, "bad char typemap"
+
+try:
+  error = 0
+  a = t.var_ushort
+  t.var_ushort = -1
+  error = 1
+except OverflowError:
+  if a != t.var_ushort:
+    error = 1
+  pass
+if error:
+  raise RuntimeError, "bad ushort typemap"
 
 try:
   error = 0
@@ -298,9 +299,33 @@ try:
 except OverflowError:
   if a != t.var_uint:
     error = 1
-  pass 
+  pass
 if error:
   raise RuntimeError, "bad uint typemap"
+
+try:
+  error = 0
+  a = t.var_sizet
+  t.var_sizet = -1
+  error = 1
+except OverflowError:
+  if a != t.var_sizet:
+    error = 1
+  pass
+if error:
+  raise RuntimeError, "bad sizet typemap"
+
+try:
+  error = 0
+  a = t.var_ulong
+  t.var_ulong = -1
+  error = 1
+except OverflowError:
+  if a != t.var_ulong:
+    error = 1
+  pass
+if error:
+  raise RuntimeError, "bad ulong typemap"
 
 #
 #
@@ -312,7 +337,7 @@ try:
 except TypeError:
   if a != t.var_namet:
     error = 1
-  pass 
+  pass
 if error:
   raise RuntimeError, "bad namet typemap"
 

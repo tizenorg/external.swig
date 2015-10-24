@@ -1,18 +1,20 @@
 /* ----------------------------------------------------------------------------- 
- * See the LICENSE file for information on copyright, usage and redistribution
- * of SWIG, and the README file for authors - http://www.swig.org/release.html.
- *
- * Simplified Wrapper and Interface Generator  (SWIG)
+ * This file is part of SWIG, which is licensed as a whole under version 3 
+ * (or any later version) of the GNU General Public License. Some additional
+ * terms also apply to certain portions of SWIG. The full details of the SWIG
+ * license and copyrights can be found in the LICENSE and COPYRIGHT files
+ * included with the SWIG source code as distributed by the SWIG developers
+ * and at http://www.swig.org/legal.html.
  *
  * swigmain.cxx
+ *
+ * Simplified Wrapper and Interface Generator  (SWIG)
  *
  * This file is the main entry point to SWIG.  It collects the command
  * line options, registers built-in language modules, and instantiates
  * a module for code generation.   If adding new language modules
  * to SWIG, you would modify this file.
  * ----------------------------------------------------------------------------- */
-
-char cvsroot_swigmain_cxx[] = "$Id: swigmain.cxx 10969 2008-12-06 23:15:20Z wsfulton $";
 
 #include "swigmod.h"
 #include <ctype.h>
@@ -47,6 +49,8 @@ extern "C" {
   Language *swig_cffi(void);
   Language *swig_uffi(void);
   Language *swig_r(void);
+  Language *swig_go(void);
+  Language *swig_d(void);
 }
 
 struct swig_module {
@@ -65,6 +69,8 @@ static swig_module modules[] = {
   {"-clisp", swig_clisp, "CLISP"},
   {"-cffi", swig_cffi, "CFFI"},
   {"-csharp", swig_csharp, "C#"},
+  {"-d", swig_d, "D"},
+  {"-go", swig_go, "Go"},
   {"-guile", swig_guile, "Guile"},
   {"-java", swig_java, "Java"},
   {"-lua", swig_lua, "Lua"},
@@ -196,7 +202,8 @@ int main(int margc, char **margv) {
       dl = (fac) ();
     }
   }
+
   int res = SWIG_main(argc, argv, dl);
-  delete dl;
+
   return res;
 }

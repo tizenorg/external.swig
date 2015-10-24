@@ -1,16 +1,16 @@
 /* ----------------------------------------------------------------------------- 
+ * This file is part of SWIG, which is licensed as a whole under version 3 
+ * (or any later version) of the GNU General Public License. Some additional
+ * terms also apply to certain portions of SWIG. The full details of the SWIG
+ * license and copyrights can be found in the LICENSE and COPYRIGHT files
+ * included with the SWIG source code as distributed by the SWIG developers
+ * and at http://www.swig.org/legal.html.
+ *
  * fio.c
  *
  *     This file implements a number of standard I/O operations included
  *     formatted output, readline, and splitting.
- * 
- * Author(s) : David Beazley (beazley@cs.uchicago.edu)
- *
- * Copyright (C) 1999-2000.  The University of Chicago
- * See the file LICENSE for information on usage and redistribution.	
  * ----------------------------------------------------------------------------- */
-
-char cvsroot_fio_c[] = "$Id: fio.c 9607 2006-12-05 22:11:40Z beazley $";
 
 #include "dohint.h"
 
@@ -21,7 +21,7 @@ static DOH *encodings = 0;	/* Encoding hash */
 /* -----------------------------------------------------------------------------
  * Writen()
  *
- * Write's N characters of output and retries until all characters are
+ * Writes N characters of output and retries until all characters are
  * written.  This is useful should a write operation encounter a spurious signal.
  * ----------------------------------------------------------------------------- */
 
@@ -45,7 +45,7 @@ static int Writen(DOH *out, void *buffer, int len) {
  * two file-like objects and operate as a filter.
  * ----------------------------------------------------------------------------- */
 
-void DohEncoding(char *name, DOH *(*fn) (DOH *s)) {
+void DohEncoding(const char *name, DOH *(*fn) (DOH *s)) {
   if (!encodings)
     encodings = NewHash();
   Setattr(encodings, (void *) name, NewVoid((void *) fn, 0));
@@ -74,7 +74,8 @@ static DOH *encode(char *name, DOH *s) {
   Seek(s, 0, SEEK_SET);
   fn = (DOH *(*)(DOH *)) Data(handle);
   ns = (*fn) (s);
-  Seek(s, pos, SEEK_SET);
+  assert(pos != -1);
+  (void)Seek(s, pos, SEEK_SET);
   if (tmp)
     Delete(tmp);
   return ns;
@@ -99,7 +100,7 @@ static DOH *encode(char *name, DOH *s) {
  * ----------------------------------------------------------------------------- */
 
 int DohvPrintf(DOH *so, const char *format, va_list ap) {
-  static char *fmt_codes = "dioxXucsSfeEgGpn";
+  static const char *fmt_codes = "dioxXucsSfeEgGpn";
   int state = 0;
   const char *p = format;
   char newformat[256];
@@ -478,16 +479,19 @@ int DohCopyto(DOH *in, DOH *out) {
       cw = buffer;
       while (nwrite) {
 	wret = Write(out, cw, nwrite);
-	if (wret < 0)
-	  return -1;
+	if (wret < 0) {
+	  nbytes = -1;
+	  break;
+	}
 	nwrite = nwrite - wret;
 	cw += wret;
       }
       nbytes += ret;
     } else {
-      return nbytes;
+      break;
     }
   }
+  return nbytes;
 }
 
 
@@ -575,15 +579,16 @@ DOH *DohReadline(DOH *in) {
     if (Read(in, &c, 1) < 0) {
       if (n == 0) {
 	Delete(s);
-	return 0;
+	s = 0;
       }
-      return s;
+      break;
     }
     if (c == '\n')
-      return s;
+      break;
     if (c == '\r')
       continue;
     Putc(c, s);
     n++;
   }
+  return s;
 }

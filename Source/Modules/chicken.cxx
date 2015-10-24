@@ -1,29 +1,31 @@
 /* -----------------------------------------------------------------------------
- * See the LICENSE file for information on copyright, usage and redistribution
- * of SWIG, and the README file for authors - http://www.swig.org/release.html.
+ * This file is part of SWIG, which is licensed as a whole under version 3 
+ * (or any later version) of the GNU General Public License. Some additional
+ * terms also apply to certain portions of SWIG. The full details of the SWIG
+ * license and copyrights can be found in the LICENSE and COPYRIGHT files
+ * included with the SWIG source code as distributed by the SWIG developers
+ * and at http://www.swig.org/legal.html.
  *
  * chicken.cxx
  *
  * CHICKEN language module for SWIG.
  * ----------------------------------------------------------------------------- */
 
-char cvsroot_chicken_cxx[] = "$Id: chicken.cxx 11133 2009-02-20 07:52:24Z wsfulton $";
-
 #include "swigmod.h"
 
 #include <ctype.h>
 
-static const char *chicken_usage = (char *) "\
+static const char *usage = (char *) "\
 \
 CHICKEN Options (available with -chicken)\n\
-     -proxy                 - Export TinyCLOS class definitions\n\
      -closprefix <prefix>   - Prepend <prefix> to all clos identifiers\n\
-     -useclassprefix        - Prepend the class name to all clos identifiers\n\
-     -unhideprimitive       - Unhide the primitive: symbols\n\
-     -nounit                - Do not (declare (unit ...)) in scheme file\n\
      -noclosuses            - Do not (declare (uses ...)) in scheme file\n\
      -nocollection          - Do not register pointers with chicken garbage\n\
                               collector and export destructors\n\
+     -nounit                - Do not (declare (unit ...)) in scheme file\n\
+     -proxy                 - Export TinyCLOS class definitions\n\
+     -unhideprimitive       - Unhide the primitive: symbols\n\
+     -useclassprefix        - Prepend the class name to all clos identifiers\n\
 \n";
 
 static char *module = 0;
@@ -133,7 +135,7 @@ void CHICKEN::main(int argc, char *argv[]) {
   for (i = 1; i < argc; i++) {
     if (argv[i]) {
       if (strcmp(argv[i], "-help") == 0) {
-	fputs(chicken_usage, stdout);
+	fputs(usage, stdout);
 	SWIG_exit(0);
       } else if (strcmp(argv[i], "-proxy") == 0) {
 	clos = 1;
@@ -286,8 +288,6 @@ int CHICKEN::top(Node *n) {
 
   Printf(f_scm, "%s\n", chickentext);
 
-
-  Close(f_scm);
   Delete(f_scm);
 
   char buftmp[20];
@@ -320,7 +320,6 @@ int CHICKEN::top(Node *n) {
   Delete(f_wrappers);
   Delete(f_sym_size);
   Delete(f_init);
-  Close(f_begin);
   Delete(f_runtime);
   Delete(f_begin);
   return SWIG_OK;
@@ -529,8 +528,8 @@ int CHICKEN::functionWrapper(Node *n) {
   String *actioncode = emit_action(n);
 
   /* Return the function value */
-  if ((tm = Swig_typemap_lookup_out("out", n, "result", f, actioncode))) {
-    Replaceall(tm, "$source", "result");
+  if ((tm = Swig_typemap_lookup_out("out", n, Swig_cresult_name(), f, actioncode))) {
+    Replaceall(tm, "$source", Swig_cresult_name());
     Replaceall(tm, "$target", "resultobj");
     Replaceall(tm, "$result", "resultobj");
     if (GetFlag(n, "feature:new")) {
@@ -557,15 +556,15 @@ int CHICKEN::functionWrapper(Node *n) {
 
   /* Look to see if there is any newfree cleanup code */
   if (GetFlag(n, "feature:new")) {
-    if ((tm = Swig_typemap_lookup("newfree", n, "result", 0))) {
-      Replaceall(tm, "$source", "result");
+    if ((tm = Swig_typemap_lookup("newfree", n, Swig_cresult_name(), 0))) {
+      Replaceall(tm, "$source", Swig_cresult_name());
       Printf(f->code, "%s\n", tm);
     }
   }
 
   /* See if there is any return cleanup code */
-  if ((tm = Swig_typemap_lookup("ret", n, "result", 0))) {
-    Replaceall(tm, "$source", "result");
+  if ((tm = Swig_typemap_lookup("ret", n, Swig_cresult_name(), 0))) {
+    Replaceall(tm, "$source", Swig_cresult_name());
     Printf(f->code, "%s\n", tm);
   }
 
@@ -673,15 +672,12 @@ int CHICKEN::variableWrapper(Node *n) {
   String *wname = NewString("");
   String *mangle = NewString("");
   String *tm;
-  String *tm2 = NewString("");;
+  String *tm2 = NewString("");
   String *argnum = NewString("0");
   String *arg = NewString("argv[0]");
   Wrapper *f;
   String *overname = 0;
   String *scmname;
-
-  int num_required;
-  int num_arguments;
 
   scmname = NewString(iname);
   Replaceall(scmname, "_", "-");
@@ -700,10 +696,6 @@ int CHICKEN::variableWrapper(Node *n) {
   /* Attach the standard typemaps */
   emit_attach_parmmaps(l, f);
   Setattr(n, "wrap:parms", l);
-
-  /* Get number of required and total arguments */
-  num_arguments = emit_num_arguments(l);
-  num_required = emit_num_required(l);
 
   // evaluation function names
   Append(wname, Swig_name_wrapper(iname));
@@ -841,9 +833,6 @@ int CHICKEN::constantWrapper(Node *n) {
   String *rvalue;
   SwigType *nctype;
 
-  int num_required;
-  int num_arguments;
-
   scmname = NewString(iname);
   Replaceall(scmname, "_", "-");
 
@@ -869,9 +858,10 @@ int CHICKEN::constantWrapper(Node *n) {
     Delete(SwigType_pop(nctype));
   }
 
+  bool is_enum_item = (Cmp(nodeType(n), "enumitem") == 0);
   if (SwigType_type(nctype) == T_STRING) {
     rvalue = NewStringf("\"%s\"", value);
-  } else if (SwigType_type(nctype) == T_CHAR) {
+  } else if (SwigType_type(nctype) == T_CHAR && !is_enum_item) {
     rvalue = NewStringf("\'%s\'", value);
   } else {
     rvalue = NewString(value);
@@ -898,10 +888,6 @@ int CHICKEN::constantWrapper(Node *n) {
   /* Attach the standard typemaps */
   emit_attach_parmmaps(l, f);
   Setattr(n, "wrap:parms", l);
-
-  /* Get number of required and total arguments */
-  num_arguments = emit_num_arguments(l);
-  num_required = emit_num_required(l);
 
   // evaluation function names
 
@@ -1148,9 +1134,9 @@ int CHICKEN::membervariableHandler(Node *n) {
 
   //String *getfunc = NewStringf("%s-%s-get", short_class_name, proc);
   //String *setfunc = NewStringf("%s-%s-set", short_class_name, proc);
-  String *getfunc = Swig_name_get(Swig_name_member(c_class_name, iname));
+  String *getfunc = Swig_name_get(NSPACE_TODO, Swig_name_member(NSPACE_TODO, c_class_name, iname));
   Replaceall(getfunc, "_", "-");
-  String *setfunc = Swig_name_set(Swig_name_member(c_class_name, iname));
+  String *setfunc = Swig_name_set(NSPACE_TODO, Swig_name_member(NSPACE_TODO, c_class_name, iname));
   Replaceall(setfunc, "_", "-");
 
   Printv(clos_class_defines, "        (list '", proc, " ':swig-virtual ':swig-get ", chickenPrimitiveName(getfunc), NIL);
@@ -1197,7 +1183,7 @@ int CHICKEN::constructorHandler(Node *n) {
   has_constructor_args = 1;
 
   String *iname = Getattr(n, "sym:name");
-  constructor_name = Swig_name_construct(iname);
+  constructor_name = Swig_name_construct(NSPACE_TODO, iname);
   Replaceall(constructor_name, "_", "-");
   return SWIG_OK;
 }
@@ -1378,12 +1364,10 @@ void CHICKEN::dispatchFunction(Node *n) {
       SortList(flist, compareTypeLists);
 
       String *clos_name;
-      int construct = 0;
       if (have_constructor && !has_constructor_args) {
 	has_constructor_args = 1;
 	constructor_dispatch = NewStringf("%s@SWIG@new@dispatch", short_class_name);
 	clos_name = Copy(constructor_dispatch);
-	construct = 1;
 	Printf(clos_methods, "(declare (hide %s))\n", clos_name);
       } else if (in_class)
 	clos_name = NewString(member_name);

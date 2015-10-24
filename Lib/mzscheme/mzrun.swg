@@ -1,7 +1,4 @@
 /* -----------------------------------------------------------------------------
- * See the LICENSE file for information on copyright, usage and redistribution
- * of SWIG, and the README file for authors - http://www.swig.org/release.html.
- *
  * mzrun.swg
  * ----------------------------------------------------------------------------- */
 
@@ -94,7 +91,6 @@ SWIG_is_unsigned_integer(Scheme_Object *o)
   
 /* ----------------------------------------------------------------------- 
  * mzscheme 30X support code
- * Contributed by Hans Oesterholt
  * ----------------------------------------------------------------------- */
 
 #ifndef SCHEME_STR_VAL
@@ -254,10 +250,6 @@ SWIG_MzScheme_new_scheme_struct (Scheme_Env* env, const char* basename,
 
     return new_type;
 }
-
-/*** DLOPEN PATCH ******************************************************
- * Contributed by Hans Oesterholt-Dijkema (jan. 2006)
- ***********************************************************************/
 
 #if defined(_WIN32) || defined(__WIN32__)
 #define __OS_WIN32
@@ -444,10 +436,6 @@ SWIG_MzScheme_new_scheme_struct (Scheme_Env* env, const char* basename,
       }
     }
   }
-
-/*** DLOPEN PATCH ******************************************************
- * Contributed by Hans Oesterholt-Dijkema (jan. 2006)
- ***********************************************************************/
 
 /* The interpreter will store a pointer to this structure in a global
    variable called swig-runtime-data-type-pointer.  The instance of this

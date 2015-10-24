@@ -1,10 +1,7 @@
 /* -----------------------------------------------------------------------------
- * See the LICENSE file for information on copyright, usage and redistribution
- * of SWIG, and the README file for authors - http://www.swig.org/release.html.
- *
  * std_map.i
  *
- * SWIG typemaps for std::map< K, T >
+ * SWIG typemaps for std::map< K, T, C >
  *
  * The C# wrapper is made to look and feel like a C# System.Collections.Generic.IDictionary<>.
  * 
@@ -29,10 +26,10 @@
 %}
 
 /* K is the C++ key type, T is the C++ value type */
-%define SWIG_STD_MAP_INTERNAL(K, T)
+%define SWIG_STD_MAP_INTERNAL(K, T, C)
 
-%typemap(csinterfaces) std::map< K, T > "IDisposable \n#if !SWIG_DOTNET_1\n    , System.Collections.Generic.IDictionary<$typemap(cstype, K), $typemap(cstype, T)>\n#endif\n";
-%typemap(cscode) std::map<K, T > %{
+%typemap(csinterfaces) std::map< K, T, C > "IDisposable \n#if !SWIG_DOTNET_1\n    , System.Collections.Generic.IDictionary<$typemap(cstype, K), $typemap(cstype, T)>\n#endif\n";
+%typemap(cscode) std::map<K, T, C > %{
 
   public $typemap(cstype, T) this[$typemap(cstype, K) key] {
     get {
@@ -70,12 +67,13 @@
   public System.Collections.Generic.ICollection<$typemap(cstype, K)> Keys {
     get {
       System.Collections.Generic.ICollection<$typemap(cstype, K)> keys = new System.Collections.Generic.List<$typemap(cstype, K)>();
-      IntPtr iter = create_iterator_begin();
-      try {
-        while (true) {
+      int size = this.Count;
+      if (size > 0) {
+        IntPtr iter = create_iterator_begin();
+        for (int i = 0; i < size; i++) {
           keys.Add(get_next_key(iter));
         }
-      } catch (ArgumentOutOfRangeException) {
+        destroy_iterator(iter);
       }
       return keys;
     }
@@ -217,19 +215,20 @@
 %}
 
   public:
-    map();
-    map(const map< K, T > &other);
-
+    typedef size_t size_type;
+    typedef ptrdiff_t difference_type;
     typedef K key_type;
     typedef T mapped_type;
-    typedef size_t size_type;
+
+    map();
+    map(const map< K, T, C > &other);
     size_type size() const;
     bool empty() const;
     %rename(Clear) clear;
     void clear();
     %extend {
       const mapped_type& getitem(const key_type& key) throw (std::out_of_range) {
-        std::map< K,T >::iterator iter = $self->find(key);
+        std::map< K, T, C >::iterator iter = $self->find(key);
         if (iter != $self->end())
           return iter->second;
         else
@@ -241,19 +240,19 @@
       }
 
       bool ContainsKey(const key_type& key) {
-        std::map< K, T >::iterator iter = $self->find(key);
+        std::map< K, T, C >::iterator iter = $self->find(key);
         return iter != $self->end();
       }
 
       void Add(const key_type& key, const mapped_type& val) throw (std::out_of_range) {
-        std::map< K, T >::iterator iter = $self->find(key);
+        std::map< K, T, C >::iterator iter = $self->find(key);
         if (iter != $self->end())
           throw std::out_of_range("key already exists");
         $self->insert(std::pair< K, T >(key, val));
       }
 
       bool Remove(const key_type& key) {
-        std::map< K, T >::iterator iter = $self->find(key);
+        std::map< K, T, C >::iterator iter = $self->find(key);
         if (iter != $self->end()) {
           $self->erase(iter);
           return true;
@@ -261,22 +260,22 @@
         return false;
       }
 
-      // create_iterator_begin() and get_next_key() work together to provide a collection of keys to C#
-      %apply void *VOID_INT_PTR { std::map< K, T >::iterator *create_iterator_begin }
-      %apply void *VOID_INT_PTR { std::map< K, T >::iterator *swigiterator }
+      // create_iterator_begin(), get_next_key() and destroy_iterator work together to provide a collection of keys to C#
+      %apply void *VOID_INT_PTR { std::map< K, T, C >::iterator *create_iterator_begin }
+      %apply void *VOID_INT_PTR { std::map< K, T, C >::iterator *swigiterator }
 
-      std::map< K, T >::iterator *create_iterator_begin() {
-        return new std::map< K, T >::iterator($self->begin());
+      std::map< K, T, C >::iterator *create_iterator_begin() {
+        return new std::map< K, T, C >::iterator($self->begin());
       }
 
-      const key_type& get_next_key(std::map< K, T >::iterator *swigiterator) throw (std::out_of_range) {
-        std::map< K, T >::iterator iter = *swigiterator;
-        if (iter == $self->end()) {
-          delete swigiterator;
-          throw std::out_of_range("no more map elements");
-        }
+      const key_type& get_next_key(std::map< K, T, C >::iterator *swigiterator) {
+        std::map< K, T, C >::iterator iter = *swigiterator;
         (*swigiterator)++;
         return (*iter).first;
+      }
+
+      void destroy_iterator(std::map< K, T, C >::iterator *swigiterator) {
+        delete swigiterator;
       }
     }
 
@@ -288,25 +287,26 @@
 %csmethodmodifiers std::map::setitem "private"
 %csmethodmodifiers std::map::create_iterator_begin "private"
 %csmethodmodifiers std::map::get_next_key "private"
+%csmethodmodifiers std::map::destroy_iterator "private"
 
 // Default implementation
 namespace std {   
-  template<class K, class T> class map {    
-    SWIG_STD_MAP_INTERNAL(K, T)
+  template<class K, class T, class C = std::less<K> > class map {
+    SWIG_STD_MAP_INTERNAL(K, T, C)
   };
 }
  
 
 // Legacy macros (deprecated)
 %define specialize_std_map_on_key(K,CHECK,CONVERT_FROM,CONVERT_TO)
-#warning specialize_std_map_on_key ignored - macro is deprecated and no longer necessary
+#warning "specialize_std_map_on_key ignored - macro is deprecated and no longer necessary"
 %enddef
 
 %define specialize_std_map_on_value(T,CHECK,CONVERT_FROM,CONVERT_TO)
-#warning specialize_std_map_on_value ignored - macro is deprecated and no longer necessary
+#warning "specialize_std_map_on_value ignored - macro is deprecated and no longer necessary"
 %enddef
 
 %define specialize_std_map_on_both(K,CHECK_K,CONVERT_K_FROM,CONVERT_K_TO, T,CHECK_T,CONVERT_T_FROM,CONVERT_T_TO)
-#warning specialize_std_map_on_both ignored - macro is deprecated and no longer necessary
+#warning "specialize_std_map_on_both ignored - macro is deprecated and no longer necessary"
 %enddef
 

@@ -1,16 +1,16 @@
 /* -----------------------------------------------------------------------------
+ * This file is part of SWIG, which is licensed as a whole under version 3 
+ * (or any later version) of the GNU General Public License. Some additional
+ * terms also apply to certain portions of SWIG. The full details of the SWIG
+ * license and copyrights can be found in the LICENSE and COPYRIGHT files
+ * included with the SWIG source code as distributed by the SWIG developers
+ * and at http://www.swig.org/legal.html.
+ *
  * base.c 
  *
  *     This file contains the function entry points for dispatching methods on
  *     DOH objects.  A number of small utility functions are also included.
- *
- * Author(s) : David Beazley (beazley@cs.uchicago.edu)
- *
- * Copyright (C) 1999-2000.  The University of Chicago
- * See the file LICENSE for information on usage and redistribution.
  * ----------------------------------------------------------------------------- */
-
-char cvsroot_base_c[] = "$Id: base.c 11097 2009-01-30 10:27:37Z bhy $";
 
 #include "dohint.h"
 
@@ -28,12 +28,15 @@ void DohDelete(DOH *obj) {
 
   if (!obj)
     return;
-#if SWIG_DEBUG_DELETE
   if (!DohCheck(b)) {
+#if SWIG_DEBUG_DELETE
     fputs("DOH: Fatal error. Attempt to delete a non-doh object.\n", stderr);
     abort();
-  }
+#else
+    assert(0);
 #endif
+    return;
+  }
   if (b->flag_intern)
     return;
   assert(b->refcount > 0);
@@ -60,6 +63,15 @@ DOH *DohCopy(const DOH *obj) {
 
   if (!obj)
     return 0;
+  if (!DohCheck(b)) {
+#if SWIG_DEBUG_DELETE
+    fputs("DOH: Fatal error. Attempt to copy a non-doh object.\n", stderr);
+    abort();
+#else
+    assert(0);
+#endif
+    return 0;
+  }
   objinfo = b->type;
   if (objinfo->doh_copy) {
     DohBase *bc = (DohBase *) (objinfo->doh_copy) (b);
@@ -245,7 +257,7 @@ int DohEqual(const DOH *obj1, const DOH *obj2) {
 
     if (!b1info) {
       return obj1 == obj2;
-    } else if ((b1info == b2info)) {
+    } else if (b1info == b2info) {
       return b1info->doh_equal ? (b1info->doh_equal) (b1, b2) : (b1info->doh_cmp ? (b1info->doh_cmp) (b1, b2) == 0 : (b1 == b2));
     } else {
       return 0;
@@ -631,7 +643,7 @@ int DohRead(DOH *obj, void *buffer, int length) {
  * DohWrite()
  * ----------------------------------------------------------------------------- */
 
-int DohWrite(DOH *obj, void *buffer, int length) {
+int DohWrite(DOH *obj, const void *buffer, int length) {
   DohBase *b = (DohBase *) obj;
   DohObjInfo *objinfo;
   if (DohCheck(obj)) {
@@ -747,6 +759,7 @@ int DohUngetc(int ch, DOH *obj) {
  * DohClose()
  * ----------------------------------------------------------------------------- */
 
+/*
 int DohClose(DOH *obj) {
   DohBase *b = (DohBase *) obj;
   DohObjInfo *objinfo;
@@ -759,6 +772,7 @@ int DohClose(DOH *obj) {
   }
   return fclose((FILE *) obj);
 }
+*/
 
 /* -----------------------------------------------------------------------------
  * DohIsString()

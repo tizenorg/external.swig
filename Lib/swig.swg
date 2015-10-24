@@ -77,7 +77,7 @@
 #define %clearoldnodefault  %feature("oldnodefault","")
 
 /* the %exception directive */
-#ifdef SWIGCSHARP
+#if defined(SWIGCSHARP) || defined(SWIGD)
 #define %exception      %feature("except", canthrow=1)
 #else
 #define %exception      %feature("except")
@@ -95,7 +95,7 @@
    to set/get variable methods. You don't need to use the
    %allowexception directive when using %exceptionvar.
 */
-#ifdef SWIGCSHARP
+#if defined(SWIGCSHARP) || defined(SWIGD)
 #define %exceptionvar      %feature("exceptvar", canthrow=1)
 #else
 #define %exceptionvar      %feature("exceptvar")
@@ -136,6 +136,11 @@
 #define %nocallback     %feature("callback","0")
 #define %clearcallback  %feature("callback","")
 
+/* the %nestedworkaround directive */
+#define %nestedworkaround       %feature("nestedworkaround")
+#define %nonestedworkaround     %feature("nestedworkaround","0")
+#define %clearnestedworkaround  %feature("nestedworkaround","")
+
 /* the %fastdispatch directive */
 #define %fastdispatch        %feature("fastdispatch")
 #define %nofastdispatch      %feature("fastdispatch","0")
@@ -150,6 +155,11 @@
 #define %naturalvar      %feature("naturalvar")
 #define %nonaturalvar    %feature("naturalvar","0")
 #define %clearnaturalvar %feature("naturalvar","")
+
+/* nspace directives */
+#define %nspace      %feature("nspace")
+#define %nonspace    %feature("nspace","0")
+#define %clearnspace %feature("nspace","")
 
 /* valuewrapper directives */
 #define %valuewrapper        %feature("valuewrapper")
@@ -259,7 +269,6 @@ static int NAME(TYPE x) {
 %define %$isaccess       "match"="access"   %enddef
 %define %$isclass        "match"="class","notmatch$template$templatetype"="class"   %enddef
 %define %$isextend       "match"="extend"  %enddef
-%define %$isextend       "match"="extend"  %enddef
 %define %$isconstructor  "match"="constructor"  %enddef
 %define %$isdestructor   "match"="destructor"  %enddef
 %define %$isnamespace    "match"="namespace"  %enddef
@@ -282,7 +291,7 @@ static int NAME(TYPE x) {
 %define %$isextern       "match$storage"="extern"  %enddef
 
 %define %$ismember       "match$ismember"="1"  %enddef
-%define %$isglobal       %not %ismember  %enddef
+%define %$isglobal       %$not %$ismember  %enddef
 %define %$innamespace    "match$parentNode$nodeType"="namespace"  %enddef
 
 %define %$ispublic       "match$access"="public"  %enddef
@@ -292,7 +301,7 @@ static int NAME(TYPE x) {
 %define %$ismemberget    "match$memberget"="1"  %enddef
 %define %$ismemberset    "match$memberset"="1"  %enddef
 
-%define %$classname      %ismember,match$parentNode$name  %enddef
+%define %$classname      %$ismember,"match$parentNode$name"  %enddef
 
 /* -----------------------------------------------------------------------------
  * Include all the warnings labels and macros 
@@ -350,7 +359,7 @@ namespace std {
 
 #ifdef __cplusplus
 %typemap(memberin) char * {
-  if ($1) delete [] $1;
+  delete [] $1;
   if ($input) {
      $1 = ($1_type) (new char[strlen((const char *)$input)+1]);
      strcpy((char *)$1, (const char *)$input);
@@ -367,7 +376,7 @@ namespace std {
   }
 }
 %typemap(globalin) char * {
-  if ($1) delete [] $1;
+  delete [] $1;
   if ($input) {
      $1 = ($1_type) (new char[strlen((const char *)$input)+1]);
      strcpy((char *)$1, (const char *)$input);
@@ -385,7 +394,7 @@ namespace std {
 }
 #else
 %typemap(memberin) char * {
-  if ($1) free((char *)$1);
+  free($1);
   if ($input) {
      $1 = ($1_type) malloc(strlen((const char *)$input)+1);
      strcpy((char *)$1, (const char *)$input);
@@ -402,7 +411,7 @@ namespace std {
   }
 }
 %typemap(globalin) char * {
-  if ($1) free((char *)$1);
+  free($1);
   if ($input) {
      $1 = ($1_type) malloc(strlen((const char *)$input)+1);
      strcpy((char *)$1, (const char *)$input);
@@ -490,12 +499,6 @@ namespace std {
     for (; jj < $1_dim1; ++jj) dp[jj] = ip[jj];
   }
 }
-
-/* Typemap for variable length arguments sentinel value.  Used
-   by the %varargs directive. */
-
-%typemap(in,numinputs=0) SWIGTYPE *VARARGS_SENTINEL, SWIGTYPE VARARGS_SENTINEL "";
-
 
 /* -----------------------------------------------------------------------------
  * Overloading support

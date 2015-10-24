@@ -1,5 +1,6 @@
- %module(directors="1") director_basic
- #pragma SWIG nowarn=SWIGWARN_TYPEMAP_THREAD_UNSAFE,SWIGWARN_TYPEMAP_DIRECTOROUT_PTR
+%module(directors="1") director_basic
+
+%warnfilter(SWIGWARN_TYPEMAP_THREAD_UNSAFE,SWIGWARN_TYPEMAP_DIRECTOROUT_PTR) MyClass::pmethod;
 
  %{
  #include <string>
@@ -10,7 +11,7 @@
    virtual std::string ping() { return "Foo::ping()"; }
    virtual std::string pong() { return "Foo::pong();" + ping(); }
 
-   static Foo* get_self(Foo *self) {return self;}
+   static Foo* get_self(Foo *slf) {return slf;}
    
  };
 
@@ -27,7 +28,7 @@
    virtual std::string ping();
    virtual std::string pong();
    
-   static Foo* get_self(Foo *self);
+   static Foo* get_self(Foo *slf);
    
  };
 

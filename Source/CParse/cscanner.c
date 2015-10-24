@@ -1,17 +1,19 @@
 /* -----------------------------------------------------------------------------
- * See the LICENSE file for information on copyright, usage and redistribution
- * of SWIG, and the README file for authors - http://www.swig.org/release.html.
+ * This file is part of SWIG, which is licensed as a whole under version 3 
+ * (or any later version) of the GNU General Public License. Some additional
+ * terms also apply to certain portions of SWIG. The full details of the SWIG
+ * license and copyrights can be found in the LICENSE and COPYRIGHT files
+ * included with the SWIG source code as distributed by the SWIG developers
+ * and at http://www.swig.org/legal.html.
  *
  * scanner.c
  *
  * SWIG tokenizer.  This file is a wrapper around the generic C scanner
- * found in Swig/scanner.c.   Extra logic is added both to accomodate the
+ * found in Swig/scanner.c.   Extra logic is added both to accommodate the
  * bison-based grammar and certain peculiarities of C++ parsing (e.g.,
  * operator overloading, typedef resolution, etc.).  This code also splits
  * C identifiers up into keywords and SWIG directives.
  * ----------------------------------------------------------------------------- */
-
-char cvsroot_cscanner_c[] = "$Id: cscanner.c 11123 2009-02-08 22:30:10Z wsfulton $";
 
 #include "cparse.h"
 #include "parser.h"
@@ -41,8 +43,6 @@ static int num_brace = 0;
 static int last_brace = 0;
 static int last_id = 0;
 static int rename_active = 0;
-static int expanding_macro = 0;
-static int follow_locators = 0;
 
 /* -----------------------------------------------------------------------------
  * Swig_cparse_cplusplus()
@@ -51,101 +51,6 @@ static int follow_locators = 0;
 void Swig_cparse_cplusplus(int v) {
   cparse_cplusplus = v;
 }
-
-/* ----------------------------------------------------------------------
- * locator()
- *
- * Support for locator strings.   These are strings of the form
- * @SWIG:filename,line,id@ emitted by the SWIG preprocessor.  They
- * are primarily used for macro line number reporting 
- * ---------------------------------------------------------------------- */
-
-typedef struct Locator {
-  String         *filename;
-  int             line_number;
-  struct Locator *next;
-} Locator;
-
-static Locator *locs = 0;
-
-/* we just use the locator to mark when active/deactive the linecounting */
-
-static void scanner_locator(String *loc) {
-  if (!follow_locators) {
-    if (Equal(loc, "/*@SWIG@*/")) {
-      /* End locator. */
-      if (expanding_macro)
-	--expanding_macro;
-    } else {
-      /* Begin locator. */
-      ++expanding_macro;
-    }
-    /* Freeze line number processing in Scanner */
-    Scanner_freeze_line(scan,expanding_macro);
-  } else {
-    int c;
-    Locator *l;
-    Seek(loc, 7, SEEK_SET);
-    c = Getc(loc);
-    if (c == '@') {
-      /* Empty locator.  We pop the last location off */
-      if (locs) {
-	Scanner_set_location(scan,locs->filename,locs->line_number);
-	cparse_file = locs->filename;
-	cparse_line = locs->line_number;
-	l = locs->next;
-	free(locs);
-	locs = l;
-      }
-      return;
-    }
-
-    /* We're going to push a new location */
-    l = (Locator *) malloc(sizeof(Locator));
-    l->filename = cparse_file;
-    l->line_number = cparse_line;
-    l->next = locs;
-    locs = l;
-
-    /* Now, parse the new location out of the locator string */
-    {
-      String *fn = NewStringEmpty();
-      /*      Putc(c, fn); */
-      
-      while ((c = Getc(loc)) != EOF) {
-	if ((c == '@') || (c == ','))
-	  break;
-	Putc(c, fn);
-      }
-      cparse_file = Swig_copy_string(Char(fn));
-      Clear(fn);
-      cparse_line = 1;
-      /* Get the line number */
-      while ((c = Getc(loc)) != EOF) {
-	if ((c == '@') || (c == ','))
-	  break;
-	Putc(c, fn);
-      }
-      cparse_line = atoi(Char(fn));
-      Clear(fn);
-      
-      /* Get the rest of it */
-      while ((c = Getc(loc)) != EOF) {
-	if (c == '@')
-	  break;
-	Putc(c, fn);
-      }
-      /*  Printf(stderr,"location: %s:%d\n",cparse_file,cparse_line); */
-      Scanner_set_location(scan,cparse_file,cparse_line);
-      Delete(fn);
-    }
-  }
-}
-
-void Swig_cparse_follow_locators(int v) {
-   follow_locators = v;
-}
-
 
 /* ----------------------------------------------------------------------------
  * scanner_init()
@@ -196,10 +101,11 @@ void start_inline(char *text, int line) {
  * ----------------------------------------------------------------------------- */
 
 void skip_balanced(int startchar, int endchar) {
+  int start_line = Scanner_line(scan);
   Clear(scanner_ccode);
 
   if (Scanner_skip_balanced(scan,startchar,endchar) < 0) {
-    Swig_error(Scanner_file(scan),Scanner_errline(scan), "Missing '%c'. Reached end of input.\n", endchar);
+    Swig_error(cparse_file, start_line, "Missing '%c'. Reached end of input.\n", endchar);
     return;
   }
 
@@ -257,7 +163,7 @@ void skip_decl(void) {
  * Lexical scanner.
  * ------------------------------------------------------------------------- */
 
-int yylook(void) {
+static int yylook(void) {
 
   int tok = 0;
 
@@ -410,6 +316,9 @@ int yylook(void) {
     case SWIG_TOKEN_FLOAT:
       return NUM_FLOAT;
       
+    case SWIG_TOKEN_BOOL:
+      return NUM_BOOL;
+      
     case SWIG_TOKEN_POUND:
       Scanner_skip_line(scan);
       yylval.id = Swig_copy_string(Char(Scanner_text(scan)));
@@ -425,7 +334,7 @@ int yylook(void) {
 	String *cmt = Scanner_text(scan);
 	char *loc = Char(cmt);
 	if ((strncmp(loc,"/*@SWIG",7) == 0) && (loc[Len(cmt)-3] == '@')) {
-	  scanner_locator(cmt);
+	  Scanner_locator(scan, cmt);
 	}
       }
       break;
@@ -462,7 +371,7 @@ void scanner_clear_rename() {
   rename_active = 0;
 }
 
-/* Used to push a ficticious token into the scanner */
+/* Used to push a fictitious token into the scanner */
 static int next_token = 0;
 void scanner_next_token(int tok) {
   next_token = tok;
@@ -499,7 +408,7 @@ int yylex(void) {
 
   l = yylook();
 
-  /*   Printf(stdout, "%s:%d:::%d: '%s'\n", cparse_file, cparse_line, l, Scanner_text(scan)); */
+  /*   Swig_diagnostic(cparse_file, cparse_line, ":::%d: '%s'\n", l, Scanner_text(scan)); */
 
   if (l == NONID) {
     last_id = 1;
@@ -525,6 +434,7 @@ int yylex(void) {
   case NUM_UNSIGNED:
   case NUM_LONGLONG:
   case NUM_ULONGLONG:
+  case NUM_BOOL:
     if (l == NUM_INT)
       yylval.dtype.type = T_INT;
     if (l == NUM_FLOAT)
@@ -539,6 +449,8 @@ int yylex(void) {
       yylval.dtype.type = T_LONGLONG;
     if (l == NUM_ULONGLONG)
       yylval.dtype.type = T_ULONGLONG;
+    if (l == NUM_BOOL)
+      yylval.dtype.type = T_BOOL;
     yylval.dtype.val = NewString(Scanner_text(scan));
     yylval.dtype.bitfield = 0;
     yylval.dtype.throws = 0;
@@ -781,7 +693,7 @@ int yylex(void) {
 	if (strcmp(yytext, "typename") == 0)
 	  return (TYPENAME);
 	if (strcmp(yytext, "template") == 0) {
-	  yylval.ivalue = cparse_line;
+	  yylval.intvalue = cparse_line;
 	  return (TEMPLATE);
 	}
 	if (strcmp(yytext, "delete") == 0) {
@@ -823,7 +735,7 @@ int yylex(void) {
 	return (SIZEOF);
 
       if (strcmp(yytext, "typedef") == 0) {
-	yylval.ivalue = 0;
+	yylval.intvalue = 0;
 	return (TYPEDEF);
       }
 
@@ -854,6 +766,10 @@ int yylex(void) {
       }
       if (strcmp(yytext, "%includefile") == 0)
 	return (INCLUDE);
+      if (strcmp(yytext, "%beginfile") == 0)
+	return (BEGINFILE);
+      if (strcmp(yytext, "%endoffile") == 0)
+	return (ENDOFFILE);
       if (strcmp(yytext, "%val") == 0) {
 	Swig_warning(WARN_DEPRECATED_VAL, cparse_file, cparse_line, "%%val directive deprecated (ignored).\n");
 	return (yylex());
@@ -865,7 +781,7 @@ int yylex(void) {
       if (strcmp(yytext, "%constant") == 0)
 	return (CONSTANT);
       if (strcmp(yytext, "%typedef") == 0) {
-	yylval.ivalue = 1;
+	yylval.intvalue = 1;
 	return (TYPEDEF);
       }
       if (strcmp(yytext, "%native") == 0)

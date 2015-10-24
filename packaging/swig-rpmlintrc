@@ -1,3 +1,0 @@
-# This line is mandatory to access the configuration functions
-from Config import *
-addFilter("swig.* devel-file-in-non-devel-package")

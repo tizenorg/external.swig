@@ -1,15 +1,15 @@
 /* -----------------------------------------------------------------------------
+ * This file is part of SWIG, which is licensed as a whole under version 3 
+ * (or any later version) of the GNU General Public License. Some additional
+ * terms also apply to certain portions of SWIG. The full details of the SWIG
+ * license and copyrights can be found in the LICENSE and COPYRIGHT files
+ * included with the SWIG source code as distributed by the SWIG developers
+ * and at http://www.swig.org/legal.html.
+ *
  * hash.c
  *
  *     Implements a simple hash table object.
- *
- * Author(s) : David Beazley (beazley@cs.uchicago.edu)
- *
- * Copyright (C) 1999-2000.  The University of Chicago
- * See the file LICENSE for information on usage and redistribution.
  * ----------------------------------------------------------------------------- */
-
-char cvsroot_hash_c[] = "$Id: hash.c 10926 2008-11-11 22:17:40Z wsfulton $";
 
 #include "dohint.h"
 
@@ -40,6 +40,7 @@ typedef struct KeyValue {
 } KeyValue;
 
 static KeyValue *root = 0;
+static int max_expand = 1;
 
 /* Find or create a key in the interned key table */
 static DOH *find_key(DOH *doh_c) {
@@ -360,7 +361,7 @@ static DohIterator Hash_nextiter(DohIterator iter) {
 }
 
 /* -----------------------------------------------------------------------------
- * Hash_keys(DOH *)
+ * Hash_keys()
  *
  * Return a list of keys
  * ----------------------------------------------------------------------------- */
@@ -377,6 +378,26 @@ static DOH *Hash_keys(DOH *so) {
 }
 
 /* -----------------------------------------------------------------------------
+ * DohSetMaxHashExpand()
+ *
+ * Controls how many Hash objects are displayed in full in Hash_str
+ * ----------------------------------------------------------------------------- */
+
+void DohSetMaxHashExpand(int count) {
+  max_expand = count;
+}
+
+/* -----------------------------------------------------------------------------
+ * DohGetMaxHashExpand()
+ *
+ * Returns how many Hash objects are displayed in full in Hash_str
+ * ----------------------------------------------------------------------------- */
+
+int DohGetMaxHashExpand(void) {
+  return max_expand;
+}
+
+/* -----------------------------------------------------------------------------
  * Hash_str()
  *
  * Create a string representation of a hash table (mainly for debugging).
@@ -386,30 +407,44 @@ static DOH *Hash_str(DOH *ho) {
   int i, j;
   HashNode *n;
   DOH *s;
-  static int indent = 4;
+  static int expanded = 0;
+  static const char *tab = "  ";
   Hash *h = (Hash *) ObjData(ho);
 
   s = NewStringEmpty();
   if (ObjGetMark(ho)) {
-    Printf(s, "Hash(0x%x)", ho);
+    Printf(s, "Hash(%p)", ho);
+    return s;
+  }
+  if (expanded >= max_expand) {
+    /* replace each hash attribute with a '.' */
+    Printf(s, "Hash(%p) {", ho);
+    for (i = 0; i < h->hashsize; i++) {
+      n = h->hashtable[i];
+      while (n) {
+	Putc('.', s);
+	n = n->next;
+      }
+    }
+    Putc('}', s);
     return s;
   }
   ObjSetMark(ho, 1);
-  Printf(s, "Hash {\n");
+  Printf(s, "Hash(%p) {\n", ho);
   for (i = 0; i < h->hashsize; i++) {
     n = h->hashtable[i];
     while (n) {
-      for (j = 0; j < indent; j++)
-	Putc(' ', s);
-      indent += 4;
+      for (j = 0; j < expanded + 1; j++)
+	Printf(s, tab);
+      expanded += 1;
       Printf(s, "'%s' : %s, \n", n->key, n->object);
-      indent -= 4;
+      expanded -= 1;
       n = n->next;
     }
   }
-  for (j = 0; j < (indent - 4); j++)
-    Putc(' ', s);
-  Printf(s, "}\n");
+  for (j = 0; j < expanded; j++)
+    Printf(s, tab);
+  Printf(s, "}");
   ObjSetMark(ho, 0);
   return s;
 }

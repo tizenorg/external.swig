@@ -15,8 +15,11 @@ Warnings.html
 Modules.html
 CCache.html
 Allegrocl.html
+Android.html
 CSharp.html
 Chicken.html
+D.html
+Go.html
 Guile.html
 Java.html
 Lisp.html
@@ -29,8 +32,7 @@ Perl5.html
 Php.html
 Pike.html
 Python.html
+R.html
 Ruby.html
 Tcl.html
-R.html
 Extending.html
-

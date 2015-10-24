@@ -42,8 +42,10 @@ eswig_SOURCES =	CParse/cscanner.c		\
 		Modules/clisp.cxx		\
 		Modules/contract.cxx		\
 		Modules/csharp.cxx		\
+		Modules/d.cxx			\
 		Modules/directors.cxx		\
 		Modules/emit.cxx		\
+		Modules/go.cxx			\
 		Modules/guile.cxx		\
 		Modules/java.cxx		\
 		Modules/lang.cxx		\
@@ -86,7 +88,6 @@ eswig_SOURCES =	CParse/cscanner.c		\
 		Swig/typeobj.c			\
 		Swig/typemap.c			\
 		Swig/typesys.c			\
-		Swig/warn.c			\
 		Swig/wrapfunc.c			
 
 bin_PROGRAMS = eswig
@@ -105,6 +106,9 @@ clean-local:
 	rm -f $(top_builddir)/swig@EXEEXT@
 	rm -f core @EXTRA_CLEAN@
 
+distclean-local:
+	rm -f $(top_builddir)/Source/Include/swigconfig.h
+	rm -f $(top_builddir)/Source/Include/stamp-h1
 
 # Beautify the code.
 # Note that this works well on C code, but does some odd joining of lines for C++ code.
@@ -112,7 +116,7 @@ clean-local:
 # swig executable as a way of checking before and after the 'beautifying'.
 # Single files can be beautified with the beautify-file target, eg: 'make beautify-file INDENTFILE=chosenfile.c'
 
-SWIGTYPEDEFS=-T File -T DohObjInfo -T Parm -T Language -T List -T Typetab -T ModuleFactory -T ErrorMessageFormat -T Symtab -T Hash -T String -T DohBase -T Node -T String_or_char -T SwigType -T Dispatcher -T Wrapper -T DohStringMethods -T DohFileMethods -T DohListMethods -T DohHashMethods -T DOH -T DohIterator -T ParmList -T FILE -T HashNode -T DOHString_or_char
+SWIGTYPEDEFS=-T bool -T File -T DohObjInfo -T Parm -T Language -T List -T Typetab -T ModuleFactory -T ErrorMessageFormat -T Symtab -T Hash -T String -T DohBase -T Node -T String_or_char -T SwigType -T Dispatcher -T Wrapper -T DohStringMethods -T DohFileMethods -T DohListMethods -T DohHashMethods -T DOH -T DohIterator -T ParmList -T FILE -T HashNode -T DOHString_or_char
 INDENTBAKSDIR=../IndentBaks
 
 beautify:
@@ -136,8 +140,6 @@ beautify-file:
 	test -n "$(INDENTFILE)" || (echo INDENTFILE not defined && exit 1;)
 	test -e $(INDENTFILE) || (echo File does not exist: $(INDENTFILE) && exit 1;)
 	cp $(INDENTFILE) $(INDENTBAKSDIR)/$(INDENTFILE);
-	unix2dos $(INDENTFILE)
-	dos2unix $(INDENTFILE)
 	indent -kr --honour-newlines --line-length160 --indent-level2 --braces-on-func-def-line --leave-optional-blank-lines $(SWIGTYPEDEFS) $(INDENTFILE) -o $(INDENTFILE).tmp;
 	cat $(INDENTFILE).tmp | sed -e 's/const const /const /' > $(INDENTFILE);
 	rm $(INDENTFILE).tmp;

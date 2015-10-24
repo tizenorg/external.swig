@@ -1,7 +1,4 @@
 /* -----------------------------------------------------------------------------
- * See the LICENSE file for information on copyright, usage and redistribution
- * of SWIG, and the README file for authors - http://www.swig.org/release.html.
- *
  * pike.swg
  *
  * Pike configuration module.
@@ -14,9 +11,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include <global.h>
-#include <module.h>
-#include <interpret.h>
+#include <pike/global.h>
+#include <pike/module.h>
+#include <pike/interpret.h>
 #ifdef __cplusplus
 }
 #endif
@@ -188,7 +185,7 @@ extern "C" {
  * String & length
  * ------------------------------------------------------------ */
 
-%typemap(in, pikedesc="tStr") (char *STRING, int LENGTH) {
+%typemap(in) (char *STRING, int LENGTH), (char *STRING, size_t LENGTH) {
     if ($input.type != T_STRING)
         Pike_error("Bad argument: Expected a string.\n");
     $1 = ($1_ltype) STR0($input.u.string);
@@ -266,6 +263,12 @@ extern "C" {
     $1 = 1;
   }
 }
+
+/* Array reference typemaps */
+%apply SWIGTYPE & { SWIGTYPE ((&)[ANY]) }
+
+/* const pointers */
+%apply SWIGTYPE * { SWIGTYPE *const }
 
 /* ------------------------------------------------------------
  * Overloaded operator support

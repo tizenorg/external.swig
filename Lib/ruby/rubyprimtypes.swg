@@ -1,9 +1,5 @@
 /* -----------------------------------------------------------------------------
- * See the LICENSE file for information on copyright, usage and redistribution
- * of SWIG, and the README file for authors - http://www.swig.org/release.html.
- *
  * rubyprimtypes.swg
- *
  * ----------------------------------------------------------------------------- */
 /* ------------------------------------------------------------
  * Primitive Types
@@ -197,7 +193,7 @@ SWIG_AsVal_dec(unsigned long long)(VALUE obj, unsigned long long *val)
 }
 
 %fragment(SWIG_AsVal_frag(double),"header",fragment="SWIG_ruby_failed") {
-%ruby_aux_method(double, NUM2DBL, NUM2DBL(obj))
+%ruby_aux_method(double, NUM2DBL, NUM2DBL(obj); (void)type)
 
 SWIGINTERN int
 SWIG_AsVal_dec(double)(VALUE obj, double *val)

@@ -1,16 +1,16 @@
 /* ----------------------------------------------------------------------------- 
+ * This file is part of SWIG, which is licensed as a whole under version 3 
+ * (or any later version) of the GNU General Public License. Some additional
+ * terms also apply to certain portions of SWIG. The full details of the SWIG
+ * license and copyrights can be found in the LICENSE and COPYRIGHT files
+ * included with the SWIG source code as distributed by the SWIG developers
+ * and at http://www.swig.org/legal.html.
+ *
  * file.c
  *
  *     This file implements a file-like object that can be built around an 
  *     ordinary FILE * or integer file descriptor.
- * 
- * Author(s) : David Beazley (beazley@cs.uchicago.edu)
- *
- * Copyright (C) 1999-2000.  The University of Chicago
- * See the file LICENSE for information on usage and redistribution.	
  * ----------------------------------------------------------------------------- */
-
-char cvsroot_file_c[] = "$Id: file.c 10898 2008-11-03 12:51:45Z wsfulton $";
 
 #include "dohint.h"
 
@@ -65,7 +65,7 @@ static int File_read(DOH *fo, void *buffer, int len) {
  * File_write()
  * ----------------------------------------------------------------------------- */
 
-static int File_write(DOH *fo, void *buffer, int len) {
+static int File_write(DOH *fo, const void *buffer, int len) {
   DohFile *f = (DohFile *) ObjData(fo);
   if (f->filep) {
     int ret = (int) fwrite(buffer, 1, len, f->filep);

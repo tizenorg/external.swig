@@ -10,9 +10,9 @@ include("example.php");
 
 print "Creating some objects:\n";
 $c = new Circle(10);
-print "    Created circle $c\n";
+print "    Created circle \$c\n";
 $s = new Square(10);
-print "    Created square $s\n";
+print "    Created square \$s\n";
 
 # ----- Access a static member -----
 
@@ -35,11 +35,10 @@ print "    Square = (" . $s->x . "," . $s->y . ")\n";
 
 # ----- Call some methods -----
 
-print "\nHere are some properties of the shapes:\n";
+print "\nCall some overloaded methods:\n";
 foreach (array(1, 2.1, "quick brown fox", $c, $s) as $o) {
-      print "    ".get_class($o)." $o\n";
-      print "        overloaded = " .  overloaded($o) . "\n";
-  }
+  print "        overloaded = " .  overloaded($o) . "\n";
+}
 
 # Need to unset($o) or else we hang on to a reference to the Square object.
 unset($o);

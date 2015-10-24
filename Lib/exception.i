@@ -1,7 +1,4 @@
 /* -----------------------------------------------------------------------------
- * See the LICENSE file for information on copyright, usage and redistribution
- * of SWIG, and the README file for authors - http://www.swig.org/release.html.
- *
  * exception.i
  *
  * SWIG library file providing language independent exception handling
@@ -17,12 +14,8 @@
 
 #ifdef SWIGPHP
 %{
-#if PHP_MAJOR_VERSION < 5
-# define SWIG_exception(code, msg) { zend_error(E_ERROR, msg); }
-#else
-# include "zend_exceptions.h"
-# define SWIG_exception(code, msg) { zend_throw_exception(NULL, (char*)msg, code TSRMLS_CC); }
-#endif
+#include "zend_exceptions.h"
+#define SWIG_exception(code, msg) { zend_throw_exception(NULL, (char*)msg, code TSRMLS_CC); }
 %}
 #endif
 
@@ -31,7 +24,7 @@
   SWIGINTERN void SWIG_exception_ (int code, const char *msg,
                                const char *subr) {
 #define ERROR(scmerr)					\
-	scm_error(gh_symbol2scm((char *) (scmerr)),	\
+	scm_error(scm_from_locale_string((char *) (scmerr)),	\
 		  (char *) subr, (char *) msg,		\
 		  SCM_EOL, SCM_BOOL_F)
 #define MAP(swigerr, scmerr)			\
@@ -212,6 +205,40 @@ SWIGINTERN void SWIG_CSharpException(int code, const char *msg) {
 
 #endif // SWIGLUA
 
+#ifdef SWIGD
+%{
+SWIGINTERN void SWIG_DThrowException(int code, const char *msg) {
+  SWIG_DExceptionCodes exception_code;
+  switch(code) {
+  case SWIG_IndexError:
+    exception_code = SWIG_DNoSuchElementException;
+    break;
+  case SWIG_IOError:
+    exception_code = SWIG_DIOException;
+    break;
+  case SWIG_ValueError:
+    exception_code = SWIG_DIllegalArgumentException;
+    break;
+  case SWIG_DivisionByZero:
+  case SWIG_MemoryError:
+  case SWIG_OverflowError:
+  case SWIG_RuntimeError:
+  case SWIG_TypeError:
+  case SWIG_SyntaxError:
+  case SWIG_SystemError:
+  case SWIG_UnknownError:
+  default:
+    exception_code = SWIG_DException;
+    break;
+  }
+  SWIG_DSetPendingException(exception_code, msg);
+}
+%}
+
+#define SWIG_exception(code, msg)\
+{ SWIG_DThrowException(code, msg); return $null; }
+#endif // SWIGD
+
 #ifdef __cplusplus
 /*
   You can use the SWIG_CATCH_STDEXCEPT macro with the %exception
@@ -262,7 +289,7 @@ SWIGINTERN void SWIG_CSharpException(int code, const char *msg) {
 
 /* rethrow the unknown exception */
 
-#ifdef SWIGCSHARP
+#if defined(SWIGCSHARP) || defined(SWIGD)
 %typemap(throws,noblock=1, canthrow=1) (...) {
   SWIG_exception(SWIG_RuntimeError,"unknown exception");
 }

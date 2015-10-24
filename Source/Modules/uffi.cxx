@@ -1,6 +1,10 @@
 /* ----------------------------------------------------------------------------- 
- * See the LICENSE file for information on copyright, usage and redistribution
- * of SWIG, and the README file for authors - http://www.swig.org/release.html.
+ * This file is part of SWIG, which is licensed as a whole under version 3 
+ * (or any later version) of the GNU General Public License. Some additional
+ * terms also apply to certain portions of SWIG. The full details of the SWIG
+ * license and copyrights can be found in the LICENSE and COPYRIGHT files
+ * included with the SWIG source code as distributed by the SWIG developers
+ * and at http://www.swig.org/legal.html.
  *
  * uffi.cxx
  *
@@ -9,9 +13,18 @@
 
 // TODO: remove remnants of lisptype
 
-char cvsroot_uffi_cxx[] = "$Id: uffi.cxx 11380 2009-07-08 12:17:45Z wsfulton $";
-
 #include "swigmod.h"
+
+static const char *usage = (char *) "\
+UFFI Options (available with -uffi)\n\
+     -identifier-converter <type or funcname> - \n\
+                       Specifies the type of conversion to do on C identifiers\n\
+                       to convert them to symbols. There are two built-in\n\
+                       converters: 'null' and 'lispify'. The default is\n\
+                       'null'. If you supply a name other than one of the\n\
+                       built-ins, then a function by that name will be\n\
+                       called to convert identifiers to symbols.\n\
+";
 
 class UFFI:public Language {
 public:
@@ -32,7 +45,7 @@ static struct {
   String **entries;
 } defined_foreign_types;
 
-static const char *identifier_converter = "identifier-convert-null";
+static String *identifier_converter = NewString("identifier-convert-null");
 
 static int any_varargs(ParmList *pl) {
   Parm *p;
@@ -206,26 +219,20 @@ void UFFI::main(int argc, char *argv[]) {
 
       /* check for built-ins */
       if (!strcmp(conv, "lispify")) {
-	identifier_converter = "identifier-convert-lispify";
+	Delete(identifier_converter);
+	identifier_converter = NewString("identifier-convert-lispify");
       } else if (!strcmp(conv, "null")) {
-	identifier_converter = "identifier-convert-null";
+	Delete(identifier_converter);
+	identifier_converter = NewString("identifier-convert-null");
       } else {
 	/* Must be user defined */
-	char *idconv = new char[strlen(conv) + 1];
-	strcpy(idconv, conv);
-	identifier_converter = idconv;
+	Delete(identifier_converter);
+	identifier_converter = NewString(conv);
       }
     }
 
     if (!strcmp(argv[i], "-help")) {
-      fprintf(stdout, "UFFI Options (available with -uffi)\n");
-      fprintf(stdout,
-	      "    -identifier-converter <type or funcname>\n"
-	      "\tSpecifies the type of conversion to do on C identifiers to convert\n"
-	      "\tthem to symbols.  There are two built-in converters:  'null' and\n"
-	      "\t 'lispify'.  The default is 'null'.  If you supply a name other\n"
-	      "\tthan one of the built-ins, then a function by that name will be\n"
-	      "\tcalled to convert identifiers to symbols.\n");
+      Printf(stdout, "%s\n", usage);
     }
   }
 }
@@ -258,9 +265,7 @@ int UFFI::top(Node *n) {
 
   Language::top(n);
 
-  Close(f_cl);
   Delete(f_cl);			// Delete the handle, not the file
-  Close(f_null);
   Delete(f_null);
 
   return SWIG_OK;
@@ -270,7 +275,8 @@ int UFFI::functionWrapper(Node *n) {
   String *funcname = Getattr(n, "sym:name");
   ParmList *pl = Getattr(n, "parms");
   Parm *p;
-  int argnum = 0, first = 1, varargs = 0;
+  int argnum = 0, first = 1;
+//  int varargs = 0;
 
   //Language::functionWrapper(n);
 
@@ -283,7 +289,7 @@ int UFFI::functionWrapper(Node *n) {
     Printf(f_cl, ":void");
   } else if (any_varargs(pl)) {
     Printf(f_cl, "#| varargs |#");
-    varargs = 1;
+//    varargs = 1;
   } else {
     for (p = pl; p; p = nextSibling(p), argnum++) {
       String *argname = Getattr(p, "name");
@@ -315,7 +321,7 @@ int UFFI::functionWrapper(Node *n) {
 	 //"  :strings-convert t\n"
 	 //"  :call-direct %s\n"
 	 //"  :optimize-for-space t"
-	 ")\n", get_ffi_type(n, Getattr(n, "type"), "result")
+	 ")\n", get_ffi_type(n, Getattr(n, "type"), Swig_cresult_name())
 	 //,varargs ? "nil"  : "t"
       );
 

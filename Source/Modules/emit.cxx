@@ -1,13 +1,15 @@
 /* -----------------------------------------------------------------------------
- * See the LICENSE file for information on copyright, usage and redistribution
- * of SWIG, and the README file for authors - http://www.swig.org/release.html.
+ * This file is part of SWIG, which is licensed as a whole under version 3 
+ * (or any later version) of the GNU General Public License. Some additional
+ * terms also apply to certain portions of SWIG. The full details of the SWIG
+ * license and copyrights can be found in the LICENSE and COPYRIGHT files
+ * included with the SWIG source code as distributed by the SWIG developers
+ * and at http://www.swig.org/legal.html.
  *
  * emit.cxx
  *
  * Useful functions for emitting various pieces of code.
  * ----------------------------------------------------------------------------- */
-
-char cvsroot_emit_cxx[] = "$Id: emit.cxx 11471 2009-07-29 20:52:29Z wsfulton $";
 
 #include "swigmod.h"
 
@@ -28,11 +30,11 @@ void emit_return_variable(Node *n, SwigType *rt, Wrapper *f) {
       SwigType *vt = cplus_value_type(rt);
       SwigType *tt = vt ? vt : rt;
       SwigType *lt = SwigType_ltype(tt);
-      String *lstr = SwigType_str(lt, "result");
+      String *lstr = SwigType_str(lt, Swig_cresult_name());
       if (SwigType_ispointer(lt)) {
-        Wrapper_add_localv(f, "result", lstr, "= 0", NULL);
+        Wrapper_add_localv(f, Swig_cresult_name(), lstr, "= 0", NULL);
       } else {
-        Wrapper_add_local(f, "result", lstr);
+        Wrapper_add_local(f, Swig_cresult_name(), lstr);
       }
       if (vt) {
         Delete(vt);
@@ -359,24 +361,9 @@ int emit_action_code(Node *n, String *wrappercode, String *eaction) {
     tm = Copy(tm);
   if ((tm) && Len(tm) && (Strcmp(tm, "1") != 0)) {
     if (Strstr(tm, "$")) {
-      Replaceall(tm, "$name", Getattr(n, "name"));
-      Replaceall(tm, "$symname", Getattr(n, "sym:name"));
+      Swig_replace_special_variables(n, parentNode(n), tm);
       Replaceall(tm, "$function", eaction); // deprecated
       Replaceall(tm, "$action", eaction);
-      Replaceall(tm, "$wrapname", Getattr(n, "wrap:name"));
-      String *overloaded = Getattr(n, "sym:overloaded");
-      Replaceall(tm, "$overname", overloaded ? Char(Getattr(n, "sym:overname")) : "");
-
-      if (Strstr(tm, "$decl")) {
-        String *decl = Swig_name_decl(n);
-        Replaceall(tm, "$decl", decl);
-        Delete(decl);
-      }
-      if (Strstr(tm, "$fulldecl")) {
-        String *fulldecl = Swig_name_fulldecl(n);
-        Replaceall(tm, "$fulldecl", fulldecl);
-        Delete(fulldecl);
-      }
     }
     Printv(wrappercode, tm, "\n", NIL);
     Delete(tm);
@@ -398,7 +385,6 @@ String *emit_action(Node *n) {
   String *tm;
   String *action;
   String *wrap;
-  SwigType *rt;
   ParmList *catchlist = Getattr(n, "catchlist");
 
   /* Look for fragments */
@@ -436,9 +422,6 @@ String *emit_action(Node *n) {
     action = Getattr(n, "wrap:action");
   assert(action != 0);
 
-  /* Get the return type */
-  rt = Getattr(n, "type");
-
   /* Emit contract code (if any) */
   if (Swig_contract_mode_get()) {
     /* Preassertion */
@@ -458,37 +441,47 @@ String *emit_action(Node *n) {
     Printf(eaction, "try {\n");
   }
 
+  String *preaction = Getattr(n, "wrap:preaction");
+  if (preaction)
+    Printv(eaction, preaction, NIL);
+
   Printv(eaction, action, NIL);
+
+  String *postaction = Getattr(n, "wrap:postaction");
+  if (postaction)
+    Printv(eaction, postaction, NIL);
 
   if (catchlist) {
     int unknown_catch = 0;
+    int has_varargs = 0;
     Printf(eaction, "}\n");
     for (Parm *ep = catchlist; ep; ep = nextSibling(ep)) {
       String *em = Swig_typemap_lookup("throws", ep, "_e", 0);
       if (em) {
-	SwigType *et = Getattr(ep, "type");
-	SwigType *etr = SwigType_typedef_resolve_all(et);
-	if (SwigType_isreference(etr) || SwigType_ispointer(etr) || SwigType_isarray(etr)) {
-	  Printf(eaction, "catch(%s) {", SwigType_str(et, "_e"));
-	} else if (SwigType_isvarargs(etr)) {
-	  Printf(eaction, "catch(...) {");
-	} else {
-	  Printf(eaction, "catch(%s) {", SwigType_str(et, "&_e"));
-	}
-	Printv(eaction, em, "\n", NIL);
-	Printf(eaction, "}\n");
+        SwigType *et = Getattr(ep, "type");
+        SwigType *etr = SwigType_typedef_resolve_all(et);
+        if (SwigType_isreference(etr) || SwigType_ispointer(etr) || SwigType_isarray(etr)) {
+          Printf(eaction, "catch(%s) {", SwigType_str(et, "_e"));
+        } else if (SwigType_isvarargs(etr)) {
+          Printf(eaction, "catch(...) {");
+          has_varargs = 1;
+        } else {
+          Printf(eaction, "catch(%s) {", SwigType_str(et, "&_e"));
+        }
+        Printv(eaction, em, "\n", NIL);
+        Printf(eaction, "}\n");
       } else {
 	Swig_warning(WARN_TYPEMAP_THROW, Getfile(n), Getline(n), "No 'throws' typemap defined for exception type '%s'\n", SwigType_str(Getattr(ep, "type"), 0));
-	unknown_catch = 1;
+        unknown_catch = 1;
       }
     }
-    if (unknown_catch) {
+    if (unknown_catch && !has_varargs) {
       Printf(eaction, "catch(...) { throw; }\n");
     }
   }
 
   /* Look for except typemap (Deprecated) */
-  tm = Swig_typemap_lookup("except", n, "result", 0);
+  tm = Swig_typemap_lookup("except", n, Swig_cresult_name(), 0);
   if (tm) {
     Setattr(n, "feature:except", tm);
     tm = 0;

@@ -1,7 +1,4 @@
 /* -----------------------------------------------------------------------------
- * See the LICENSE file for information on copyright, usage and redistribution
- * of SWIG, and the README file for authors - http://www.swig.org/release.html.
- *
  * std_pair.i
  *
  * std::pair typemaps for LUA
@@ -13,7 +10,7 @@
 /*
 A really cut down version of the pair class.
 
-this is not useful on its owns is it needs a %template definition with it
+this is not useful on its own - it needs a %template definition with it
 
 eg.
 namespace std {

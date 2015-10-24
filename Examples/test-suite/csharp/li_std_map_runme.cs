@@ -1,12 +1,7 @@
 /* -----------------------------------------------------------------------------
- * See the LICENSE file for information on copyright, usage and redistribution
- * of SWIG, and the README file for authors - http://www.swig.org/release.html.
- *
  * li_std_map_runme.cs
  *
  * SWIG C# tester for std_map.i
- * Implementation by Yuval Baror (http://yuval.bar-or.org)
- *
  * This class tests all the functionality of the std_map.i wrapper.
  * Upon successful testing, the main function doesn't print out anything.
  * If any error is found - it will be printed on the screen.
@@ -73,6 +68,7 @@ public class li_std_map_runme {
         {
             IList<string> keys = new List<string>(simap.Keys);
             IList<int> values = new List<int>(simap.Values);
+            Dictionary<string, int> check = new Dictionary<string, int>();
             if (keys.Count != collectionSize)
                 throw new Exception("Keys count test failed");
 
@@ -83,6 +79,13 @@ public class li_std_map_runme {
             {
                 if (simap[keys[i]] != values[i])
                     throw new Exception("Keys and values test failed for index " + i);
+                check.Add(keys[i], values[i]);
+            }
+
+            for (int i = 0; i < collectionSize; i++)
+            {
+                if (!check.ContainsKey(i.ToString()))
+                  throw new Exception("Keys and Values ContainsKey test " + i + " failed");
             }
         }
 
